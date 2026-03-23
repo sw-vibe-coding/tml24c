@@ -1,0 +1,8 @@
+number = 6
+slug = "eval-core"
+status = "pending"
+description = "Implement eval with core special forms"
+role = "production"
+context_files = []
+created_at = "2026-03-23T14:30:00"
+task_type = "c-compile-fix"

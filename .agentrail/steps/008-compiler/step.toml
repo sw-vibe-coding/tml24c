@@ -1,0 +1,8 @@
+number = 8
+slug = "compiler"
+status = "pending"
+description = "Compile to COR24 assembly"
+role = "production"
+context_files = []
+created_at = "2026-03-23T14:30:00"
+

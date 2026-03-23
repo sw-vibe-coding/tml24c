@@ -1,0 +1,3033 @@
+
+
+
+
+I'm interested in creating (or porting) a Tiny Lisp interpreter with macros to a target ISA, so I need to bootstrap it in assembler.  Note that I want Lisp-style macros not scheme-style.  I would like to have a more powerful (or more modern) flavor of Lisp.  Would it be better to have a unified namespace for functions and variables or separate name spaces.  I assume lexical scope is "better".   I will need a minimal library that should be bootstrapped and written in this Lisp dialect.  I'm inspired by Clojure and ClojureScript but I want a minimal runtime (not Java or node) that runs native on COR24 RISC 24-bit ISA.  I have a C-compiler an an assembler.  What are my options?  I want to be able to demo anaphoric macros, list processing, basic arithmetic and string operations on a small embedded-class COR24-TB board or my emulator for that. 
+
+
+Thought for 46s
+Restating the goal
+You want a small native Lisp for COR24 that can be bootstrapped from assembler, has Common-Lisp-style defmacro macros rather than Scheme hygienic macros, uses a minimal runtime, and is strong enough to demo:
+
+anaphoric macros
+
+list processing
+
+arithmetic
+
+strings
+
+native execution on a small embedded-class board or emulator
+
+You also want guidance on:
+
+Lisp-1 vs Lisp-2 (unified vs separate namespaces)
+
+lexical vs dynamic scope
+
+what existing tiny Lisps are worth porting or borrowing from
+
+what the minimal bootstrapped library should look like
+
+Recommendation
+For your target and constraints, I would build or port a small lexical-scope Lisp-1 with Common-Lisp-style unhygienic macros.
+
+That means:
+
+Unified namespace for variables and functions
+
+Lexical scope by default
+
+defmacro + backquote/unquote + gensym
+
+Proper closures
+
+Minimal special forms
+
+Single-heap mark-sweep GC
+
+Reader/evaluator first, compiler later
+
+That is not exactly Common Lisp and not exactly Clojure, but it is the best fit for tiny runtime + assembler bootstrap + macro demos.
+
+Why this direction fits best
+1. Unified namespace is simpler for a tiny bootstrap
+A Lisp-1 gives you one environment model instead of two. That makes:
+
+the evaluator smaller
+
+variable lookup simpler
+
+closures simpler
+
+bootstrapping in assembler easier
+
+macro-expansion code easier to reason about
+
+femtolisp explicitly describes itself as a lisp-1 with lexical scope, and its design goal is a small, concise core. It also uses a bytecode compiler/VM and keeps the core intentionally compact. 
+
+Tradeoff
+A Lisp-2 gives you cleaner separation between value bindings and function bindings, which some people prefer for larger Lisp systems. It also feels more “Common Lisp-ish.”
+
+But on your target, the extra machinery is not buying you enough.
+
+My call
+For COR24 v1, choose:
+
+Lisp-1
+
+lexical scope
+
+unhygienic defmacro
+
+That gets you very close to the feel you want, while keeping implementation burden much lower.
+
+2. Lexical scope is the right default
+You already suspect this, and I agree.
+
+Lexical scope gives you:
+
+proper closures
+
+predictable local reasoning
+
+easier optimization later
+
+compatibility with modern expectations
+
+better macro/library design
+
+Even uLisp, which targets microcontrollers, moved from dynamic scoping to lexical scoping in a later release, describing lexical scoping as aligned with current Lisp dialects. 
+
+Dynamic scope still has a place
+You may eventually want a tiny notion of special variables for things like:
+
+*print-base*
+
+*trace*
+
+*stdin*, *stdout*
+
+current package / current reader mode
+
+But add those later as an explicit mechanism. Do not make the language dynamically scoped by default.
+
+3. Use Common-Lisp-style macros, not Scheme hygiene
+For your demos, you specifically want things like anaphoric macros. Those are a natural fit for unhygienic macros.
+
+You want:
+
+defmacro
+
+quasiquote / backquote
+
+unquote
+
+unquote-splicing
+
+gensym
+
+That gives you:
+
+when, unless, and, or
+
+let
+
+cond
+
+threading macros if desired
+
+anaphoric forms like aif, awhen, acond
+
+Scheme hygienic macro systems are powerful, but they are not the best first target for:
+
+tiny bootstrap
+
+assembler bring-up
+
+“classic Lisp” macro demos
+
+So I would not start from a Scheme macro model even if you borrow from a Scheme-like interpreter.
+
+Best implementation options
+Option A — Port a small C Lisp, then tighten it for COR24
+This is the best path if your C compiler is usable.
+
+Strong candidate: Robert van Engelen’s small Lisp
+His small C Lisp explicitly includes:
+
+macros
+
+strings
+
+closures
+
+lexical scope
+
+file loading
+
+GC
+
+a single cell[] memory array in one version
+
+easy customization/extensibility 
+
+There is also a Cheney-copying variant with similar language features. 
+
+Why it fits
+Pros:
+
+small enough to understand
+
+already has the language features you need
+
+C source is easier to port than a larger Lisp runtime
+
+educational codebase
+
+can run first in emulator, then board
+
+Cons:
+
+not Common Lisp
+
+you will still need to adapt object representation, I/O, and memory model
+
+may include more than you need for phase 1
+
+My view
+This is probably your best “port and trim” starting point.
+
+Option B — Borrow ideas from femtolisp, but probably do not port it whole
+femtolisp is very attractive architecturally: small core, lexical scope, compact design, bytecode VM, and a tiny number of builtin forms/functions. 
+
+Why not make it the first port?
+Pros:
+
+elegant
+
+serious design
+
+compact core
+
+good inspiration for reader, evaluator, and macro facilities
+
+Cons:
+
+more Scheme-oriented than your target taste
+
+bytecode VM may be more machinery than you want for bootstrap
+
+likely more adaptation work if your end goal is a very small native COR24 runtime with CL-style feel
+
+My view
+Use it as a design reference, not necessarily as the direct first port.
+
+Option C — Use uLisp as an embedded reference
+uLisp is relevant because it is aimed at small systems, and its release history notes a move to lexical scoping. 
+
+Why it helps
+Pros:
+
+embedded mindset
+
+practical minimal-library ideas
+
+microcontroller constraints
+
+likely useful for REPL/I/O ideas and memory budgeting
+
+Cons:
+
+not especially close to your desired Clojure/Common-Lisp hybrid feel
+
+implementation decisions may be shaped by Arduino-class hosts rather than your exact ISA/runtime goals
+
+not the clearest path if assembler bootstrap is central
+
+My view
+Good embedded reference, not my first-choice direct port.
+
+Option D — Write a new tiny Lisp from scratch, borrowing from the above
+This is viable if your real goal is educational control and you do not mind more work.
+
+Why it may be the best long-term answer
+You can choose exactly:
+
+object layout
+
+calling convention
+
+closure representation
+
+macro semantics
+
+GC
+
+string model
+
+native primitive ABI for COR24
+
+Why it may not be the best short-term answer
+You will spend significant time rediscovering:
+
+reader edge cases
+
+symbol interning details
+
+macro expansion pitfalls
+
+evaluator/environment bugs
+
+GC bugs
+
+My view
+Best if you want:
+
+maximum control
+
+a clean teaching system
+
+a native COR24 story from day one
+
+But for fastest demo, I would still start from Option A and then progressively replace internals.
+
+Language-design recommendation
+Dialect shape
+I would define the language roughly like this:
+
+Core identity
+Small lexical Lisp-1
+
+Common-Lisp-style macro system
+
+No package system initially
+
+Single global namespace + lexical locals
+
+Truthiness: nil false, everything else true
+
+Symbols are interned
+
+Lists are primary source/data form
+
+Strings are first-class
+
+Special forms for v1
+quote
+
+if
+
+do or progn
+
+fn or lambda
+
+define
+
+set! or set
+
+let
+
+let*
+
+defmacro
+
+Optional early:
+
+while
+
+catch/throw
+
+quasiquote
+
+Builtins for v1
+cons, car, cdr
+
+list, append, reverse
+
+eq?, equal?, atom?, null?, symbol?, string?, number?
+
++, -, *, /, <, <=, >, >=
+
+read, print, println
+
+gensym
+
+macroexpand-1
+
+Library-in-Lisp for v1
+caar, cadr, cdar, cddr, etc.
+
+not
+
+when, unless
+
+and, or
+
+cond
+
+map, filter, foldl
+
+anaphoric aif, awhen
+
+maybe -> and ->> later if you want a Clojure flavor
+
+Namespace choice: Lisp-1 vs Lisp-2
+My recommendation: Lisp-1
+Why
+smaller evaluator
+
+fewer lookup rules
+
+easier macroexpansion
+
+easier bootstrapping in assembler
+
+closer to Clojure, which you explicitly cited as inspiration
+
+Cost
+you sometimes need explicit lambda wrapping in places where CL would use function namespace naturally
+
+some CL idioms do not transfer directly
+
+When would I choose Lisp-2 instead?
+Only if your real goal is:
+
+stronger Common Lisp compatibility
+
+future package/function-cell architecture
+
+eventual setf, generic functions, and a more CL-like object system
+
+That is a bigger system than you need for a board demo.
+
+Scope model
+My recommendation
+Lexical by default
+
+later add special/dynamic variables explicitly
+
+Why
+This gives you:
+
+clean closures
+
+sensible macro-generated code
+
+easier optimization later
+
+much better library behavior
+
+Minimal dynamic mechanism later
+You can add:
+
+(defdynamic *trace* nil)
+
+(binding (*trace* t) ...)
+
+But keep that out of the first bootstrap.
+
+Macro model
+Use classic unhygienic macros
+You said “Lisp-style macros not Scheme-style.” So I would implement:
+
+(defmacro name (args...) body...)
+
+quasiquote
+
+unquote
+
+unquote-splicing
+
+gensym
+
+That is enough for expressive demos.
+
+Example target demos
+(defmacro when (test . body)
+  `(if ,test
+       (do ,@body)
+       nil))
+(defmacro aif (test then . else)
+  (let ((g (gensym)))
+    `(let ((,g ,test))
+       (if ,g
+           (let ((it ,g)) ,then)
+           (do ,@else)))))
+That second one is exactly the kind of demo that argues for your chosen macro system.
+
+Runtime architecture for COR24
+High-level design
+For an embedded-class 24-bit target, I would strongly favor:
+
+tagged word representation
+
+pairs/symbols/strings in heap
+
+small immediate integers
+
+single contiguous heap
+
+mark-sweep GC
+
+iterative evaluator if possible
+
+optional trampoline for tail calls
+
+Object representation
+Because COR24 is 24-bit, a natural design is:
+
+Option 1: one-word tagged values
+Use one 24-bit word for:
+
+fixnums
+
+chars
+
+booleans
+
+nil
+
+heap pointers with tag bits
+
+Example idea:
+
+low 2–3 bits as tag
+
+aligned heap objects make tagged pointers easy
+
+Pros:
+
+compact
+
+fast dispatch
+
+good for assembler
+
+Cons:
+
+fixnum range reduced
+
+strings/symbols/pairs all heap-resident
+
+Option 2: descriptor word + payload
+More flexible but larger/slower.
+
+My call
+Use one-word tagged values.
+
+Heap object types
+Start with only:
+
+pair
+
+symbol
+
+string
+
+closure
+
+primitive
+
+macro
+
+environment frame
+
+Optional later:
+
+vector
+
+byte buffer
+
+reader stream
+
+hash table
+
+GC choice
+My recommendation: mark-sweep first
+Why
+For a small board, copying GC doubles effective heap requirement. The Cheney variant is elegant, but it requires two semispaces. 
+
+A single-heap mark-sweep design is friendlier if RAM is tight. The non-Cheney small Lisp version also emphasizes a single cell[] memory array. 
+
+Tradeoffs
+Mark-sweep
+
+pros: single heap, stable pointers, simpler foreign references
+
+cons: allocation slower, fragmentation concerns, mark phase complexity
+
+Copying/Cheney
+
+pros: very simple allocation, compaction “for free”
+
+cons: needs 2x semispace, moving objects complicate root handling
+
+For your board demo, I would pick:
+
+mark-sweep now
+
+maybe compact strings separately later
+
+maybe copying collector only in emulator or larger-memory builds
+
+Bootstrapping strategy
+Best practical path
+Phase 0 — Host implementation
+Get the Lisp running first on your dev machine or emulator as:
+
+portable C
+
+tiny memory model
+
+test suite
+
+Phase 1 — Cross-compile to COR24
+Use your C compiler to get it running on:
+
+emulator first
+
+then board
+
+At this phase, do not over-optimize.
+
+Phase 2 — Replace runtime-sensitive pieces
+Move selected parts into assembler:
+
+allocator
+
+pair access
+
+symbol intern
+
+evaluator dispatch
+
+primitive-call ABI
+
+maybe reader hot paths
+
+Phase 3 — Self-host parts of the library
+Write the standard library in your Lisp:
+
+list functions
+
+control macros
+
+anaphoric macros
+
+numeric helpers
+
+string helpers
+
+Phase 4 — Optional compiler/bytecode
+Once interpreter works, decide whether you want:
+
+direct eval only
+
+bytecode VM
+
+threaded-code VM
+
+native compilation later
+
+Minimal standard library to bootstrap in Lisp
+I would keep the primitive substrate tiny and push the rest into Lisp.
+
+In C / asm primitives
+reader support
+
+printer
+
+symbol interning
+
+GC
+
+pair allocation
+
+string allocation
+
+arithmetic primitives
+
+primitive function call dispatch
+
+environment lookup / bind / set
+
+In Lisp source
+when, unless, cond
+
+not, and, or
+
+list walkers
+
+map, filter, reduce
+
+anaphoric macros
+
+simple looping macros
+
+basic string utilities built from primitives
+
+This is the right split for a bootstrap-friendly system.
+
+What I would not do initially
+Avoid these in v1
+hygienic macro system
+
+package system
+
+reader extensibility beyond basics
+
+bignums
+
+ratios
+
+full CL numeric tower
+
+full error-condition hierarchy
+
+generic functions / CLOS
+
+continuations
+
+multiple values
+
+modules/namespaces
+
+tail-call perfection at all costs if it complicates bring-up
+
+You can always add them later.
+
+Best concrete options summary
+Best for fastest path
+Port the small C Lisp by Robert van Engelen, trim it, then adapt semantics toward your desired dialect. It already has lexical scope, strings, macros, closures, file loading, and a compact implementation. 
+
+Best for architecture inspiration
+Study femtolisp. Its deliberately small core, lexical scope, and compact design are very relevant, even if you do not port it directly. 
+
+Best for embedded reference
+Borrow ideas from uLisp. Especially for embedded concerns and minimalism. Its move to lexical scope is also a strong signal. 
+
+Best long-term purity
+Write a new Lisp-1 with CL-style macros tailored to COR24.
+
+Final design recommendation
+If I were choosing for your exact goal, I would build:
+
+“COR24 Tiny Lisp” v1
+Lisp-1
+
+lexical scope
+
+Common-Lisp-style defmacro
+
+quasiquote + gensym
+
+tagged 24-bit words
+
+pairs/symbols/strings/closures/macros
+
+mark-sweep GC
+
+tiny primitive core
+
+library mostly written in Lisp
+
+REPL + file load
+
+demo macros: when, unless, aif, awhen
+
+That gives you the best balance of:
+
+modern feel
+
+macro power
+
+implementation simplicity
+
+native embedded viability
+
+strong demo value
+
+Suggested next step
+The most useful follow-up is a concrete phase-by-phase implementation plan for COR24 with:
+
+value/tag layout
+
+heap layout
+
+environment structure
+
+evaluator pseudocode
+
+macroexpander design
+
+minimal primitive set
+
+bootstrap library contents
+
+assembler/C split by phase
+
+I can lay that out as a detailed engineering plan.
+
+
+Okay, here is my motivation: I want to learn how to implement a Lisp.  I want a C-based (with some assembler) to test my C and Assembler tools (can they compile a non-trivial system, like a small Lisp), and I want a way to program this (and other) target ISA(s) running in an emulator (or FPGA) to create embedded-apps or simple apps in Lisp (I can already do this in Assembler and to some extent C or Rust).  This would be my first garbage-collected interpreter.  I also want to impement Forth and possibly SNOBOL4 (or port them) but those are other lower-priority projects.
+
+
+Thought for 11s
+Restating the goal
+You want this project to do three jobs at once:
+
+teach you how to implement a Lisp
+
+stress-test your C compiler, assembler, emulator, and board toolchain with something meaningfully non-trivial
+
+produce a usable native language for COR24 and similar targets
+
+You also want this to be your first garbage-collected interpreter, with Forth and possibly SNOBOL4 later as follow-on projects.
+
+That changes the recommendation a bit: this is not just about picking a Lisp dialect. It is about picking a project shape that maximizes learning, toolchain validation, and incremental success.
+
+High-level recommendation
+For your first GC interpreter on COR24, I would not start by porting a “modern Lisp” whole-cloth.
+
+I would instead build the project in three layers:
+
+Layer 1 — tiny core interpreter in C
+A very small Lisp with:
+
+lexical scope
+
+Lisp-1 namespace
+
+cons cells
+
+symbols
+
+fixnums
+
+strings
+
+closures
+
+defmacro
+
+quasiquote
+
+a REPL / file loader
+
+mark-sweep GC
+
+Layer 2 — bootstrapped Lisp library
+Write the higher-level language in the Lisp itself:
+
+when, unless, cond
+
+and, or
+
+list utilities
+
+anaphoric macros
+
+small string helpers
+
+maybe threading macros later
+
+Layer 3 — target-specific runtime glue
+Small amount of assembler for:
+
+startup
+
+stack/heap init
+
+primitive I/O hooks
+
+optional hot paths
+
+board-specific console/UART/string output
+
+This gives you the best balance of:
+
+understandable implementation
+
+demonstrable progress
+
+realistic compiler/assembler validation
+
+good future path toward Forth and maybe SNOBOL
+
+Why Lisp is the right first interpreter project
+Of the three you mentioned:
+
+Lisp
+Best first GC interpreter project.
+
+Why:
+
+homoiconicity makes reader + evaluator + macros very educational
+
+you can start tiny and still have a useful system
+
+garbage collection matters immediately and naturally
+
+bootstrapping the library in the language itself is straightforward
+
+Forth
+Probably easier than Lisp overall, but it tests different things.
+
+Why:
+
+much smaller runtime
+
+often no GC at all
+
+extremely good for target bring-up and embedded control
+
+but it teaches you less about environments, closures, and GC
+
+Forth is a great second project after Lisp, or even a side project for:
+
+assembler confidence
+
+threaded interpreters
+
+target ABI exploration
+
+direct hardware control
+
+SNOBOL4
+Most interesting semantically, but a poor first interpreter for your stated goal.
+
+Why:
+
+powerful pattern semantics
+
+unusual runtime behavior
+
+less direct value for “embedded apps on a board”
+
+harder to keep tiny and demo-friendly
+
+So the ordering I would recommend is:
+
+Lisp first → Forth second → SNOBOL4 later
+
+What this project should optimize for
+Since your motivation is educational and infrastructural, the right success criteria are not “full language richness.” They are:
+
+1. Small but real
+It should run:
+
+a REPL
+
+file-based programs
+
+recursive functions
+
+closures
+
+macros
+
+list processing
+
+2. Board-friendly
+It should fit:
+
+in modest RAM
+
+with a simple console I/O story
+
+with no OS dependency
+
+with a tiny runtime
+
+3. Good compiler/assembler test
+It should exercise:
+
+function calls
+
+stack frames
+
+recursion
+
+structs / pointers
+
+string storage
+
+heap allocation
+
+branch-heavy code
+
+non-trivial control flow
+
+4. Good future platform
+It should later support:
+
+bytecode VM if desired
+
+simple apps/scripts
+
+board test harnesses
+
+maybe a tiny DSL for your emulator environment
+
+Best implementation strategy
+Recommended architecture
+Phase A — host-first C implementation
+Write and run the interpreter on a normal machine first.
+
+This is essential because it lets you separate:
+
+language bugs
+
+GC bugs
+
+reader/evaluator bugs
+
+COR24 codegen bugs
+
+board I/O bugs
+
+Without that separation, the project becomes muddy too quickly.
+
+Phase B — cross-compile to emulator
+Use your C compiler and assembler to get the same code running under your COR24 emulator.
+
+At this stage, the language should already work.
+
+Phase C — board bring-up
+Move to the FPGA / embedded board with:
+
+UART console
+
+file loading if feasible, otherwise ROM-embedded scripts
+
+simple heap sizing
+
+small demo programs
+
+Phase D — selective assembler replacement
+Only after it works, replace pieces with assembler where useful:
+
+allocator fast path
+
+tag checks
+
+primitive arithmetic
+
+pair accessors
+
+reader hot loops
+
+context switch / trampoline if needed
+
+That sequence maximizes learning and minimizes confusion.
+
+Dialect choice for this project
+Given your stated motivation, I would now make the recommendation even more strongly:
+
+Choose a tiny lexical Lisp-1 with CL-style macros
+Not because it is philosophically perfect, but because it is the best teaching platform.
+
+Why Lisp-1
+A unified namespace keeps the evaluator smaller and easier to understand. femtolisp is an example of a compact Lisp-1 with lexical scope and unrestricted macros. 
+
+Why lexical scope
+Lexical scope is the better long-term default for closures and modern language behavior. Even uLisp moved from dynamic to lexical scoping in a later release. 
+
+Why CL-style macros
+You explicitly want anaphoric macros and Lisp-style macro programming. Unhygienic defmacro plus quasiquote is the simplest and most demo-friendly route.
+
+Why not start more Clojure-like than this
+Clojure’s feel is attractive, but persistent data structures, namespaces, sequence abstractions, and host expectations are extra weight. Borrow the taste, not the full design.
+
+Concrete project-shape recommendation
+Project 1: “Tiny Macro Lisp for COR24”
+Runtime in C (+ a little asm)
+Implement only:
+
+tagged values
+
+cons cells
+
+symbols
+
+fixnums
+
+strings
+
+closures
+
+primitives
+
+macros
+
+environments
+
+GC
+
+reader / printer
+
+evaluator
+
+Minimal special forms
+quote
+
+if
+
+do / progn
+
+lambda
+
+define
+
+set!
+
+let
+
+defmacro
+
+Minimal primitives
+cons, car, cdr
+
+eq?, equal?, null?, atom?
+
++, -, *, /
+
+<, <=, >, >=
+
+print, println
+
+gensym
+
+maybe read and load
+
+Bootstrap library in Lisp
+list
+
+append
+
+reverse
+
+map
+
+filter
+
+foldl
+
+not
+
+when
+
+unless
+
+cond
+
+and
+
+or
+
+aif
+
+awhen
+
+That is already enough to feel like a real Lisp.
+
+GC recommendation for your first interpreter
+Use mark-sweep first
+This is the right first GC for your goals.
+
+Why:
+
+conceptually easier to inspect in a debugger
+
+works with a single heap
+
+stable pointers are easier while bringing up on a custom target
+
+easier to understand when validating generated C/asm
+
+Robert van Engelen’s more complete small Lisp uses a mark-sweep/compacting collector, while a separate variant demonstrates Cheney copying GC. 
+
+Why not copying GC first
+Cheney copying GC is elegant, but for a first interpreter on a possibly RAM-tight target:
+
+semispace overhead hurts
+
+root-finding bugs can be harder to reason about
+
+moving objects complicate low-level debugging
+
+Best learning progression
+first interpreter: mark-sweep
+
+second GC experiment: copying collector
+
+maybe later: compacting or generational ideas
+
+That way GC itself becomes a learning ladder.
+
+Best starting codebases to study
+1. Robert van Engelen’s tiny Lisps
+These are especially relevant because they are small, C-based, explained, and include lexical scope, macros, closures, strings, GC, and REPL/file loading. 
+
+This makes them excellent for:
+
+learning
+
+trimming down
+
+porting concepts
+
+comparing mark-sweep vs copying GC
+
+2. femtolisp
+Useful as a compact reference for:
+
+Lisp-1 structure
+
+lexical scope
+
+unrestricted macros
+
+tiny core language design
+
+possible later bytecode direction 
+
+3. uLisp
+Useful as an embedded-oriented reference, especially for:
+
+minimalism
+
+board constraints
+
+incremental language growth
+
+practical runtime tradeoffs 
+
+What you should learn from Lisp that will transfer to Forth and SNOBOL
+From Lisp, you will learn:
+tokenization / reader design
+
+AST vs direct representation
+
+environment chains
+
+closures
+
+interpreter dispatch
+
+garbage collection
+
+runtime object tagging
+
+symbol interning
+
+bootstrapped library design
+
+macro expansion
+
+That transfers to Forth as:
+interpreter structure
+
+dictionary layout
+
+threaded execution
+
+compiler vs interpreter mode
+
+host/target split
+
+low-level runtime design
+
+That transfers to SNOBOL4 as:
+runtime value representation
+
+allocator design
+
+GC
+
+interpreter control flow
+
+string-heavy runtime concerns
+
+So even though Forth may be simpler, Lisp gives you the richest reusable lessons.
+
+Risks and tradeoffs
+Risk 1 — too much “modern Lisp”
+If you chase Clojure-like richness too early, the runtime balloons.
+
+Avoid in v1:
+
+namespaces
+
+persistent vectors/maps
+
+protocols
+
+multimethods
+
+sophisticated sequence library
+
+reader conditionals
+
+STM-like ideas
+
+Risk 2 — too much Common Lisp compatibility
+If you chase CL too early, complexity balloons in a different direction.
+
+Avoid in v1:
+
+Lisp-2
+
+packages
+
+setf
+
+complex numeric tower
+
+conditions/restarts
+
+CLOS
+
+multiple values
+
+Risk 3 — too much target-specific work too early
+If you write too much assembler before the host version works, you will conflate language bugs with target bugs.
+
+Risk 4 — GC too clever too early
+Keep the collector boring at first.
+
+Best development sequence
+Stage 0 — language spec sketch
+Write a 2–3 page spec:
+
+syntax
+
+evaluation rules
+
+special forms
+
+primitive types
+
+macro rules
+
+truthiness
+
+scope rules
+
+Stage 1 — object model
+Define:
+
+value tags
+
+heap object structs
+
+symbol table / interning
+
+environment frames
+
+Stage 2 — no-GC interpreter
+Get something running with a bump allocator or fixed arena and no reclamation yet.
+
+This is a very important trick:
+
+you can validate the evaluator first
+
+then add GC later
+
+Stage 3 — add mark-sweep GC
+Once the evaluator works, add collection and root scanning.
+
+Stage 4 — bootstrap library
+Implement the non-core language in Lisp itself.
+
+Stage 5 — macro demos
+Add:
+
+when
+
+unless
+
+cond
+
+anaphoric macros
+
+Stage 6 — emulator port
+Compile with your COR24 C compiler and debug there.
+
+Stage 7 — board port
+Add UART I/O and size the heap.
+
+This sequence is much safer than trying to do everything at once.
+
+What “non-trivial system” means here
+A tiny Lisp is an excellent compiler/assembler validation target because it will exercise:
+
+parser/reader logic
+
+recursive descent or recursive evaluation
+
+linked structures
+
+closure allocation
+
+variable lookup chains
+
+dynamic heap allocation
+
+garbage collection
+
+string handling
+
+function calling conventions
+
+deep branching and error paths
+
+That is far richer than many toy C programs, while still being small enough to understand end to end.
+
+My final recommendation
+Given your motivation, I would make the project explicitly:
+
+A tiny lexical Lisp-1 with unhygienic macros, written in C first, then ported to COR24, with mark-sweep GC and a Lisp-written bootstrap library.
+That is the best first project because it simultaneously teaches:
+
+language implementation
+
+garbage collection
+
+runtime design
+
+macro systems
+
+C and assembler toolchain validation
+
+embedded interpreter bring-up
+
+And it sets you up well for:
+
+a later Forth
+
+a later string-heavy language like SNOBOL
+
+future bytecode or native compilation experiments
+
+Strong practical advice
+Do not try to make the first version “the right Lisp.”
+
+Make it:
+
+tiny
+
+inspectable
+
+hackable
+
+easy to port
+
+easy to debug
+
+If you get closures, macros, strings, GC, and file loading working on COR24, you will already have built something substantial.
+
+The most useful next step is a detailed implementation roadmap with:
+
+value tagging for a 24-bit ISA
+
+heap layout
+
+environment layout
+
+GC root strategy
+
+evaluator pseudocode
+
+minimal primitive API
+
+file/module layout for the C + asm codebase
+
+
+Need a detailed plan, initially focused on bootstrapping.  Exactly what C and Assembler is needed early on?  What is the smallest starting subset?  The original 1960's LISP was one page of assembler.  Can we start with something like that and/or C?  
+
+
+Thought for 10s
+Restating the goal
+You want a bootstrap-first plan for a tiny Lisp on COR24, with special emphasis on:
+
+the smallest useful starting subset
+
+exactly what C you need early
+
+exactly what assembler you need early
+
+how close you can get to the spirit of the early one-page Lisp systems
+
+how to stage the work so you can validate your C compiler, assembler, emulator, and board runtime incrementally
+
+The right way to think about this is:
+
+smallest semantic core
+
+smallest runtime substrate
+
+smallest bootstrapping path
+
+only then the “real” Lisp conveniences like macros, strings, and closures
+
+Historically, early Lisp was remarkably small in conceptual core, and McCarthy’s 1960 paper presents a tiny nucleus built around a handful of primitives and eval-style interpretation. 
+
+Executive recommendation
+Yes: you can start in the spirit of the early Lisps.
+
+But for your goals, I would not literally start with only a one-page assembler interpreter.
+
+I would instead use a three-stage bootstrap:
+
+Stage 0 — “McCarthy core” mindset
+Build the tiniest evaluator with:
+
+symbols
+
+cons cells
+
+quote
+
+atom
+
+eq
+
+car
+
+cdr
+
+cons
+
+cond
+
+lambda
+
+label or define
+
+This gives you the conceptual seed of Lisp. McCarthy’s classic Lisp core revolved around essentially this territory. 
+
+Stage 1 — minimal implementation in mostly C
+Write the evaluator, reader, printer, and heap manager in plain C, with only a tiny amount of assembler for:
+
+reset/startup
+
+stack initialization
+
+low-level I/O shims
+
+maybe heap/zeroing helpers if your C runtime is incomplete
+
+This is the best first milestone for toolchain validation.
+
+Stage 2 — bootstrap the “real tiny Lisp”
+Once Stage 1 works, add:
+
+lexical scope
+
+closures
+
+defmacro
+
+quasiquote
+
+strings
+
+mark-sweep GC
+
+small library in Lisp itself
+
+That gives you the Lisp you actually want to demo.
+
+The smallest viable starting subset
+There are two different “smallest subsets,” and it is useful to keep them separate.
+
+Smallest semantic subset
+This is the smallest language worth calling Lisp:
+
+atoms / symbols
+
+cons cells
+
+quote
+
+atom
+
+eq
+
+car
+
+cdr
+
+cons
+
+cond
+
+function application
+
+named recursion (label or top-level define)
+
+That subset is enough to demonstrate:
+
+symbolic computation
+
+list processing
+
+recursive definitions
+
+non-trivial programs
+
+Smallest implementation subset
+This is the smallest thing you should actually code first:
+
+fixnums
+
+symbols
+
+cons cells
+
+nil / truth
+
+reader for atoms, integers, lists, quote
+
+printer
+
+global environment only
+
+special forms:
+
+quote
+
+if or cond
+
+define
+
+lambda
+
+builtins:
+
+atom?
+
+eq?
+
+car
+
+cdr
+
+cons
+
++
+
+-
+
+*
+
+<
+
+print
+
+That is the true “first runnable” subset.
+
+It is slightly more modern than the earliest Lisp core, but it is much better for practical bring-up.
+
+What should be in assembler first
+For an early bootstrap, keep assembler extremely small.
+
+Required assembler, early on
+1. Reset / entry point
+You need one small assembly file that:
+
+sets the initial stack pointer
+
+clears .bss if your runtime does not already do it
+
+optionally copies .data from ROM to RAM
+
+jumps to main()
+
+This is the most important assembly file.
+
+2. UART / console primitives
+If there is no usable C runtime or no libc, expose a tiny board/emulator I/O surface:
+
+putchar
+
+optional getchar
+
+optional puts or write
+
+If you already have these in C and they work reliably, do them in C instead.
+
+3. Trap / halt / panic
+A tiny assembly or mixed C/asm routine for:
+
+halt
+
+breakpoint
+
+panic loop
+
+Very useful during bring-up.
+
+Optional assembler, later
+Only after the interpreter works:
+
+tagged-value tests
+
+cons allocation fast path
+
+primitive arithmetic helpers
+
+GC scan helpers
+
+context save/restore if you later do trampolines or coroutines
+
+Do not start with these.
+
+What should be in C first
+Almost everything else.
+
+Required C, early on
+1. Value representation
+You need:
+
+one Value type
+
+tag macros / helpers
+
+immediate integers
+
+pointer-tagged heap references or descriptor-based objects
+
+2. Heap allocator
+Initially this can be just:
+
+a fixed arena
+
+bump allocation
+
+no GC yet
+
+This is an important point: do not start with GC if the goal is fastest bring-up.
+
+3. Cons cells and symbols
+You need:
+
+cons
+
+car
+
+cdr
+
+symbol interning
+
+equality on symbols
+
+4. Reader
+A minimal reader for:
+
+whitespace
+
+symbols
+
+decimal integers
+
+( and )
+
+'x as shorthand for (quote x)
+
+5. Printer
+A minimal printer for:
+
+integers
+
+symbols
+
+lists
+
+dotted pairs optional later
+
+6. Environment
+Initially:
+
+simple linked list of bindings
+
+maybe only global bindings at first
+
+later lexical chained environments
+
+7. Evaluator
+Initially:
+
+self-evaluating integers
+
+symbol lookup
+
+quote
+
+if or cond
+
+lambda
+
+define
+
+function application
+
+builtin dispatch
+
+8. Tiny test harness
+At minimum:
+
+load/eval a string
+
+print result
+
+maybe compile in a few startup Lisp tests
+
+This is critical for validating your C compiler.
+
+Smallest realistic bootstrap path
+Here is the path I recommend.
+
+Bootstrap 0 — no parser, no GC, no macros
+Start with hand-constructed Lisp objects in C.
+
+That means you build expressions directly in C, something like:
+
+symbol "quote"
+
+symbol "x"
+
+list nodes manually
+
+Then run eval() on those objects.
+
+Why this matters
+It lets you validate:
+
+tagged values
+
+cons allocation
+
+symbol interning
+
+evaluator logic
+
+builtin dispatch
+
+without also debugging:
+
+reader
+
+printer
+
+GC
+
+board input
+
+This is the smallest true bootstrap.
+
+Deliverable
+A C test program that constructs and evaluates:
+
+(quote a)
+
+(cons (quote a) (quote b))
+
+(car (quote (a b)))
+
+recursive function on a small list
+
+Bootstrap 1 — add reader and printer
+Now add text input and output.
+
+Minimal syntax
+Support only:
+
+symbols
+
+integers
+
+lists
+
+quote shorthand
+
+Still no strings, no dotted pair syntax, no backquote.
+
+Deliverable
+A REPL or simple file loader that can run:
+
+(define id (lambda (x) x))
+(id 42)
+Bootstrap 2 — add lexical environments
+Now make closures real.
+
+At this stage you move from “toy Lisp” to “actual language.”
+
+Needed C changes
+environment frames
+
+closure object type
+
+lambda capturing environment
+
+application using closure env
+
+Deliverable
+This should work:
+
+(define make-adder
+  (lambda (n)
+    (lambda (x) (+ x n))))
+
+(define add2 (make-adder 2))
+(add2 5)
+Bootstrap 3 — add mark-sweep GC
+Now that the language works, add reclamation.
+
+Why here
+Because GC bugs are much easier to isolate after:
+
+reader works
+
+printer works
+
+eval works
+
+closures work
+
+What you need
+mark bit in heap objects
+
+root enumeration from:
+
+global environment
+
+current eval stack / temp roots
+
+symbol table
+
+reader/printer temp roots
+
+sweep pass
+
+free list
+
+Deliverable
+A stress test that allocates lots of temporary lists and still runs correctly.
+
+Bootstrap 4 — add macros
+Now add the Lisp you actually want.
+
+Minimal macro feature set
+defmacro
+
+macro objects
+
+macro expansion before normal evaluation
+
+quasiquote
+
+unquote
+
+gensym
+
+Deliverable
+Define when and aif in Lisp.
+
+Bootstrap 5 — add strings
+Strings matter for embedded apps and demos, but they are not part of the absolute minimum evaluator.
+
+Why not earlier
+Strings add:
+
+reader complexity
+
+printer complexity
+
+allocation complexity
+
+GC roots
+
+builtin surface area
+
+Delay them until the core is already stable.
+
+Exactly what files I would create first
+Earliest file set
+Assembly
+crt0.S
+
+entry point
+
+stack init
+
+bss/data init
+
+jump to main
+
+board_io.S only if needed
+
+putchar
+
+getchar optional
+
+halt
+
+C
+platform.h
+
+integer typedefs
+
+board constants
+
+memory layout constants
+
+value.h
+
+Value
+
+tag macros
+
+predicates
+
+heap.c
+
+arena init
+
+bump alloc first
+
+alloc_cons
+
+later GC
+
+symbol.c
+
+symbol intern table
+
+symbol creation
+
+env.c
+
+binding lookup
+
+bind/update
+
+eval.c
+
+evaluator
+
+apply
+
+builtin dispatch
+
+read.c
+
+reader
+
+print.c
+
+printer
+
+builtin.c
+
+car, cdr, cons, arithmetic, print, comparisons
+
+main.c
+
+init
+
+tests
+
+REPL or load-run loop
+
+That is enough for a genuine first system.
+
+Exact minimum C surface before GC
+If you want the absolute smallest initial milestone, here is the minimum.
+
+Types
+NIL
+
+FIXNUM
+
+SYMBOL
+
+CONS
+
+BUILTIN
+
+CLOSURE can wait one step if you start with top-level-only functions
+
+Builtins
+cons
+
+car
+
+cdr
+
+eq?
+
+atom?
+
++
+
+-
+
+*
+
+<
+
+print
+
+Special forms
+quote
+
+if or cond
+
+define
+
+lambda
+
+Reader tokens
+(
+
+)
+
+'
+
+integers
+
+symbols
+
+This is the smallest starting subset I would endorse.
+
+Can you start “like the original Lisp”?
+Yes, in spirit.
+
+But there are two good interpretations of that.
+
+Interpretation A — tiny semantic nucleus
+Yes, absolutely. This is the best idea.
+
+Build the smallest evaluator that manipulates symbolic expressions. That is exactly the right educational move.
+
+Interpretation B — assembler-first minimal interpreter
+Possible, but not my recommendation for your main project.
+
+Pros
+deeply educational
+
+stresses assembler immediately
+
+historically evocative
+
+gives a very small substrate
+
+Cons
+slowest path to a usable Lisp
+
+difficult to debug
+
+mixes runtime, evaluator, and target bugs too early
+
+distracts from validating your C compiler
+
+Better compromise
+Write one tiny assembler substrate plus mostly C interpreter.
+
+That still preserves the spirit:
+
+tiny trusted base
+
+explicit runtime bring-up
+
+visible control over the machine
+
+without making the project unnecessarily painful.
+
+Suggested milestones
+Milestone 1 — hand-built AST eval in C
+No reader, no GC.
+
+Must run:
+
+quoted symbol
+
+cons
+
+car
+
+if
+
+top-level function call
+
+Milestone 2 — text reader + printer
+Must run from source text:
+
+simple arithmetic
+
+list construction
+
+recursive list length
+
+Milestone 3 — lexical closures
+Must run:
+
+function returning function
+
+captured variable demo
+
+Milestone 4 — GC
+Must survive:
+
+repeated list allocation loops
+
+recursive map/fold over generated lists
+
+Milestone 5 — macros
+Must run:
+
+when
+
+unless
+
+aif
+
+awhen
+
+Milestone 6 — strings + simple embedded app demo
+Must run:
+
+string literals
+
+concatenation / compare / print
+
+board-specific app logic
+
+What to postpone aggressively
+To keep the bootstrap clean, postpone:
+
+hygienic macros
+
+package/module system
+
+vector/hashmap types
+
+tail-call optimization
+
+continuations
+
+dotted formal args
+
+variadic lambdas
+
+reader escapes beyond basics
+
+string interpolation
+
+bytecode compiler
+
+optimizer
+
+None of those belong in the earliest bootstrap.
+
+My recommended “smallest starting subset” in one sentence
+Start with a mostly-C, no-GC, no-string, no-macro Lisp core consisting of:
+
+fixnums
+
+symbols
+
+cons cells
+
+global env
+
+quote
+
+if
+
+define
+
+lambda
+
+car
+
+cdr
+
+cons
+
+eq?
+
+arithmetic
+
+a tiny reader/printer
+
+with only enough assembler for startup and console I/O.
+
+That is the best bootstrap target.
+
+Strong opinion on order
+If your main goals are learning and toolchain validation, the best order is:
+
+no-GC evaluator
+
+reader/printer
+
+lexical closures
+
+GC
+
+macros
+
+strings
+
+board polish
+
+That order minimizes confusion and maximizes visible progress.
+
+Final recommendation
+Yes, you should start in the spirit of the original tiny Lisp systems.
+
+But the practical modern equivalent is not “one page of assembler first.”
+
+It is:
+
+one tiny assembly substrate + one tiny C evaluator + one tiny Lisp library
+That gives you:
+
+historical flavor
+
+manageable complexity
+
+strong toolchain validation
+
+a clean path to the more powerful macro Lisp you actually want
+
+The most useful next step is a concrete phase-by-phase engineering document for COR24 with:
+
+proposed 24-bit tagged value layout
+
+exact heap object layouts
+
+exact early C APIs
+
+exact assembler stubs
+
+a sequence of tests and demo programs for each milestone
+
+
+Is there enough documented her for an AI Coding agent to proceed using my C compiler, assembler, and emulator?
+
+Restating the requirement
+You want to know whether the material in this conversation is sufficient for an AI coding agent to start work using your existing:
+
+C compiler
+
+assembler
+
+emulator
+
+The practical answer is:
+
+Yes — enough to begin architecture, scaffolding, and a host-side/target-aware bootstrap skeleton.
+No — not enough to reliably complete a COR24-targeted implementation without several concrete target and toolchain details.
+So the conversation is enough for an agent to proceed productively, but only for the early phases and only if it is willing to make conservative assumptions and leave a few target-specific integration points as TODOs or adapter layers.
+
+What is already sufficiently specified
+There is already enough here for an agent to start building the project structure and first implementation stages.
+
+1. Language direction is sufficiently specified
+The agent can proceed assuming:
+
+tiny Lisp
+
+Lisp-1
+
+lexical scope
+
+Common-Lisp-style unhygienic macros
+
+small runtime
+
+native on COR24
+
+bootstrap-first approach
+
+minimal initial subset before macros/strings/GC richness
+
+That is enough to avoid thrashing on language design.
+
+2. Development order is sufficiently specified
+The agent has a clear staged plan:
+
+tiny evaluator core
+
+minimal reader/printer
+
+lexical environments / closures
+
+mark-sweep GC
+
+macros
+
+strings
+
+board/emulator integration polish
+
+That is enough for a disciplined implementation roadmap.
+
+3. Earliest runtime split is sufficiently specified
+The agent can proceed with this split:
+
+Assembly first
+crt0.S
+
+stack init
+
+BSS/data init if needed
+
+jump to main
+
+optional putchar/getchar/halt
+
+C first
+value representation
+
+heap
+
+symbol table
+
+env
+
+eval
+
+read
+
+print
+
+builtins
+
+main/test harness
+
+That is concrete enough to start coding.
+
+4. Smallest subset is sufficiently specified
+The agent can implement the first milestone as:
+
+Data
+fixnums
+
+symbols
+
+cons cells
+
+nil
+
+Special forms
+quote
+
+if
+
+define
+
+lambda
+
+Builtins
+cons
+
+car
+
+cdr
+
+eq?
+
+atom?
+
++ - * <
+
+print
+
+Reader
+integers
+
+symbols
+
+lists
+
+'x
+
+That is a real, actionable MVP.
+
+5. Project intent is sufficiently specified
+The agent knows this is for:
+
+learning language implementation
+
+validating toolchain quality
+
+exercising compiler/assembler/emulator on non-trivial software
+
+eventually enabling embedded apps in Lisp
+
+That helps it make the right tradeoffs toward simplicity and observability rather than premature sophistication.
+
+What is not sufficiently specified yet
+This is the important part. An agent can start, but these gaps matter.
+
+1. COR24 ABI / calling convention
+This is the biggest missing piece.
+
+The agent needs to know things like:
+
+how arguments are passed
+
+return value register(s)
+
+caller-saved vs callee-saved registers
+
+stack growth direction
+
+alignment rules
+
+how C and assembly interoperate
+
+whether function pointers work normally
+
+how structs are returned/passed
+
+whether recursion is reliable with your C compiler
+
+Without this, an agent can still write portable C, but target-specific asm glue will be guesswork.
+
+2. Memory map and startup model
+The agent needs:
+
+RAM start/end
+
+ROM/flash layout if relevant
+
+stack location/size
+
+heap location/size
+
+whether .data must be copied manually
+
+whether .bss must be zeroed manually
+
+memory-mapped UART addresses if used
+
+emulator I/O model
+
+Without this, it can only write placeholder startup code.
+
+3. Exact assembler syntax and constraints
+Assemblers vary a lot.
+
+The agent needs:
+
+assembler syntax flavor
+
+directives for sections, globals, constants, data allocation
+
+comment syntax
+
+macro syntax if any
+
+calling/jump syntax
+
+object/output format expectations
+
+linker expectations or load format
+
+Without that, it can only produce pseudo-assembly or tentative assembly.
+
+4. C compiler capabilities and limitations
+This matters a lot for a Lisp.
+
+The agent needs to know:
+
+which C standard is supported, roughly
+
+whether stdint.h-style types exist
+
+whether static, const, enum, function pointers, recursion, and local arrays work
+
+whether bitfields or shifts on 24-bit-ish values are reliable
+
+whether switch works well
+
+whether malloc exists or is irrelevant
+
+whether long is 24 or 32 bits
+
+whether char* string literals work normally
+
+how globals/statics are laid out
+
+whether there are known compiler bugs
+
+Without
+
+Streaming interrupted. Waiting for the complete message...
+
+
+continue
+
+Restating the requirement
+You are asking whether the discussion so far is sufficient for an AI coding agent to start implementing a bootstrap Lisp for COR24 using your existing C compiler, assembler, and emulator, or whether more concrete documentation is still needed.
+
+The answer is:
+
+Yes — enough to start a planning + scaffold + host-side prototype exists.
+No — not enough yet for a reliable target-execution implementation without the missing machine/toolchain details.
+So an agent can proceed partway right now, but only if it is constrained to the right initial scope.
+
+What an agent can safely do now
+With what is already documented, an agent can already create:
+
+1. The project structure
+It can lay out a repo like:
+
+docs/
+
+requirements.md
+
+architecture.md
+
+bootstrap-plan.md
+
+memory-model.md
+
+test-plan.md
+
+src/
+
+value.h
+
+heap.c
+
+symbol.c
+
+env.c
+
+eval.c
+
+read.c
+
+print.c
+
+builtin.c
+
+main.c
+
+asm/
+
+crt0.S
+
+board_io.S
+
+tests/
+
+reader tests
+
+eval tests
+
+GC tests
+
+Lisp script tests
+
+2. A host-side reference implementation
+An agent can implement the first bootstrap version in portable C for normal execution on a desktop or host.
+
+That is already well specified enough because we have agreed on:
+
+tiny Lisp
+
+Lisp-1
+
+lexical scope
+
+CL-style macros later
+
+mark-sweep GC later
+
+initial no-GC phase
+
+minimal special forms and primitives
+
+staged bootstrap order
+
+3. A target-independent language core
+An agent can write:
+
+value tagging API
+
+symbol table
+
+environment model
+
+evaluator
+
+basic reader/printer
+
+builtins
+
+early tests
+
+4. Documentation
+An agent can also generate the missing design documents from the decisions already made.
+
+That is actually a good next step because it converts conversational intent into executable engineering constraints.
+
+What an agent cannot reliably do yet
+For actual COR24 bring-up, the current discussion is not yet sufficient in the low-level sense.
+
+The missing information is not about Lisp semantics anymore; it is about the target contract.
+
+An agent still lacks enough detail to confidently write working target-specific code for:
+
+1. ABI / calling convention
+It needs to know:
+
+argument passing rules
+
+return value rules
+
+callee-saved vs caller-saved registers
+
+stack growth direction
+
+stack alignment
+
+frame-pointer conventions
+
+varargs support, if any
+
+how C and asm interoperate on COR24
+
+Without this, assembly stubs and low-level runtime glue are guesswork.
+
+2. Memory map
+It needs:
+
+RAM start/end
+
+ROM/flash start/end
+
+MMIO regions
+
+UART addresses
+
+boot/reset vector locations
+
+whether code and data live in separate spaces
+
+whether writable .data must be copied from ROM to RAM
+
+3. Object-size assumptions in your C compiler
+It needs:
+
+size of char, short, int, long, pointer
+
+signedness defaults
+
+struct layout/alignment rules
+
+enum size
+
+bitfield behavior if any
+
+endianness
+
+This matters a lot for tagged values, heap structs, and GC scanning.
+
+4. C runtime support
+It needs to know whether the compiler/linker already provides:
+
+crt0
+
+stack initialization
+
+.bss clearing
+
+.data relocation
+
+memcpy, memset
+
+division/mod helpers
+
+malloc stubs or no runtime at all
+
+If not, those must be written explicitly.
+
+5. Assembler syntax and linker format
+It needs:
+
+assembler dialect
+
+symbol declaration syntax
+
+section syntax
+
+relocation capabilities
+
+linker script format
+
+how to declare reset vectors / entry point
+
+how to link C output with handwritten assembly
+
+6. Emulator control surface
+It needs:
+
+how to load binaries
+
+how to run headless tests
+
+how to capture stdout/console
+
+how to inspect memory/registers
+
+how to automate regression tests
+
+whether UART/MMIO is emulated exactly like hardware
+
+7. Failure/debugging workflow
+It needs:
+
+how assertions should fail
+
+whether there is a trap instruction
+
+how to breakpoint
+
+how to dump heap state
+
+how to extract logs from emulator runs
+
+So is there “enough documented here”?
+Enough for:
+architecture
+
+repo setup
+
+staged implementation plan
+
+host-side bootstrap interpreter
+
+test scaffolding
+
+target-abstraction interfaces
+
+documentation generation
+
+Not enough for:
+actual COR24 crt0
+
+board I/O layer
+
+linker script
+
+exact tagged layout tied to machine word behavior
+
+assembly helper routines
+
+automated target test execution
+
+So the right answer is:
+
+There is enough here for an AI coding agent to begin productively, but not enough to finish a working COR24 port without a target-spec handoff.
+Best way to use an agent right now
+The agent should be told to proceed in two bounded phases.
+
+Phase 1 — proceed now
+Have the agent implement:
+
+Documents
+requirements.md
+
+architecture.md
+
+bootstrap-plan.md
+
+cor24-open-questions.md
+
+Portable implementation
+minimal C interpreter
+
+no-GC first
+
+reader/printer
+
+eval
+
+environments
+
+tests
+
+host runner
+
+Target abstraction layer
+Define interfaces like:
+
+platform_putchar(int ch)
+
+platform_getchar(void)
+
+platform_halt(int code)
+
+platform_heap_start()
+
+platform_heap_end()
+
+Stub these on host first.
+
+That work is safe and useful immediately.
+
+Phase 2 — only after target handoff
+Then give the agent a small precise hardware/toolchain packet, and have it implement:
+
+crt0.S
+
+linker script
+
+board I/O
+
+target build system
+
+emulator test harness
+
+heap placement
+
+low-level debug support
+
+What exact information should you provide next?
+The minimum handoff packet should contain these files or notes.
+
+A. COR24 machine note
+register set
+
+pointer width
+
+endianness
+
+alignment rules
+
+stack convention
+
+call/return convention
+
+B. C compiler note
+sizes of scalar types
+
+example generated assembly for a tiny C function
+
+how globals/statics are emitted
+
+any unsupported C features
+
+C. Assembler/linker note
+sample assembly file
+
+directives for sections, globals, constants
+
+how to link with C objects
+
+how entry point is selected
+
+D. Emulator note
+load/run command
+
+capture output command
+
+exit status behavior
+
+debug/breakpoint support
+
+E. Board or emulator MMIO note
+UART TX address
+
+UART RX address
+
+status register semantics
+
+halt or exit mechanism
+
+A very practical threshold test
+Here is the simplest test for whether an AI agent has enough to proceed to target work:
+
+Can it write and successfully run this program on COR24?
+
+C
+main() calls putchar('O'), putchar('K'), newline
+
+Assembly/runtime
+startup enters main
+
+UART output works
+
+binary loads in emulator
+
+output is captured automatically
+
+If that is not yet fully specified, then target bring-up is not yet agent-ready.
+
+If that is specified, then the agent can start doing useful COR24 work.
+
+Recommended project split for the agent
+I would explicitly instruct the agent to create these milestones.
+
+Milestone 1
+Portable host-only Lisp core:
+
+fixnums
+
+symbols
+
+cons
+
+reader
+
+printer
+
+global env
+
+quote, if, define, lambda
+
+arithmetic/list primitives
+
+Milestone 2
+Lexical closures and tests.
+
+Milestone 3
+GC.
+
+Milestone 4
+Macros.
+
+Milestone 5
+COR24 platform layer once target packet is supplied.
+
+That keeps the agent from wandering into underspecified areas.
+
+What I would tell the agent, in plain terms
+A good instruction would be:
+
+Implement a host-side bootstrap Lisp in portable C first. Do not assume any COR24 ABI details yet. Isolate all platform dependencies behind a tiny platform interface. Generate documentation for the missing target-specific information needed before porting to COR24.
+
+That is enough to get strong progress immediately.
+
+Bottom line
+Yes:
+There is enough documented for an AI coding agent to start now on the language core, tests, repository structure, and host-side implementation.
+
+No:
+There is not enough documented yet for the agent to reliably complete the COR24-specific runtime and assembly glue without a short, explicit target/toolchain specification.
+
+The next best step is to turn this conversation into a compact engineering handoff: one requirements doc, one architecture doc, and one COR24/toolchain-spec questionnaire.
+
+
+
+
