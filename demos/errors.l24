@@ -1,0 +1,47 @@
+;; errors.l24 -- Error handling and recovery
+;;
+;; Shows: Runtime error messages for type errors, div-by-zero, unbound symbols. REPL continues after each error.
+;; Prelude: standard
+;; Stack: 3 KB (default)
+;; Run: just eval demos/errors.l24
+
+; Division by zero (was a hardware hang, now caught)
+(/ 42 0)
+
+; Arithmetic continues after error
+(+ 1 2)
+
+; Type errors in arithmetic
+(+ "hello" 1)
+(* nil 5)
+
+; car/cdr on non-pairs
+(car 42)
+(cdr "hello")
+(car nil)
+
+; Unbound symbol (soft error, returns nil)
+foo-bar-baz
+
+; Calling a non-function
+(42 1 2)
+
+; Nested error: inner error doesn't kill outer expression
+(+ 1 (/ 10 0))
+(+ 1 2) ; still alive
+
+; Errors in let body
+(let ((x (/ 1 0))) (+ x 10))
+(+ 100 200) ; still alive
+
+; Safe division helper
+(define safe-div (lambda (a b) (if (= b 0) 'inf (/ a b))))
+(safe-div 10 3)
+(safe-div 10 0)
+
+; Type-checking helper
+(define add-safe (lambda (a b) (if (and (number? a) (number? b)) (+ a b) 'type-error)))
+(add-safe 10 20)
+(add-safe "x" 1)
+
+(exit)
