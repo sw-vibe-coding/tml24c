@@ -5,6 +5,8 @@
 #include "heap.h"
 #include "symbol.h"
 #include "print.h"
+#include "read.h"
+#include "eval.h"
 
 void test_scaffold() {
     /* Fixnum */
@@ -48,12 +50,142 @@ void test_scaffold() {
     print_val(nested);
     putc_uart(10);
 
-    puts_str("tml24c ok\n");
+    puts_str("scaffold ok\n");
+}
+
+void test_read_one(char *input, char *expected) {
+    int val = read_str(input);
+    puts_str(input);
+    puts_str(" => ");
+    print_val(val);
+    puts_str(" [");
+    puts_str(expected);
+    puts_str("]\n");
+}
+
+void test_reader() {
+    /* Integers */
+    test_read_one("42", "42");
+    test_read_one("-7", "-7");
+    test_read_one("0", "0");
+
+    /* Symbols */
+    test_read_one("foo", "foo");
+    test_read_one("nil", "nil");
+    test_read_one("+", "+");
+
+    /* Empty list */
+    test_read_one("()", "nil");
+
+    /* Simple list */
+    test_read_one("(1 2 3)", "(1 2 3)");
+
+    /* Dotted pair */
+    test_read_one("(1 . 2)", "(1 . 2)");
+
+    /* Nested list */
+    test_read_one("(a (b c))", "(a (b c))");
+
+    /* Quote */
+    test_read_one("'x", "(quote x)");
+
+    /* Mixed */
+    test_read_one("(+ 1 2)", "(+ 1 2)");
+    test_read_one("(define x 42)", "(define x 42)");
+
+    puts_str("reader ok\n");
+}
+
+void test_eval_one(char *input, char *expected) {
+    int expr = read_str(input);
+    int result = eval(expr, NIL_VAL);
+    puts_str(input);
+    puts_str(" => ");
+    print_val(result);
+    puts_str(" [");
+    puts_str(expected);
+    puts_str("]\n");
+}
+
+void test_eval() {
+    /* Self-evaluating */
+    test_eval_one("42", "42");
+    test_eval_one("-7", "-7");
+
+    /* Quote */
+    test_eval_one("(quote foo)", "foo");
+    test_eval_one("'(1 2 3)", "(1 2 3)");
+
+    /* Arithmetic */
+    test_eval_one("(+ 1 2)", "3");
+    test_eval_one("(- 10 3)", "7");
+    test_eval_one("(* 4 5)", "20");
+    test_eval_one("(/ 10 3)", "3");
+
+    /* Nested arithmetic */
+    test_eval_one("(+ (* 2 3) (- 10 4))", "12");
+
+    /* Comparison */
+    test_eval_one("(< 1 2)", "t");
+    test_eval_one("(< 2 1)", "nil");
+    test_eval_one("(= 5 5)", "t");
+    test_eval_one("(= 5 6)", "nil");
+
+    /* If */
+    test_eval_one("(if t 1 2)", "1");
+    test_eval_one("(if nil 1 2)", "2");
+    test_eval_one("(if (< 1 2) 10 20)", "10");
+
+    /* List operations */
+    test_eval_one("(cons 1 2)", "(1 . 2)");
+    test_eval_one("(car (cons 1 2))", "1");
+    test_eval_one("(cdr (cons 1 2))", "2");
+    test_eval_one("(list 1 2 3)", "(1 2 3)");
+
+    /* Predicates */
+    test_eval_one("(null? nil)", "t");
+    test_eval_one("(null? 1)", "nil");
+    test_eval_one("(pair? (cons 1 2))", "t");
+    test_eval_one("(atom? 42)", "t");
+    test_eval_one("(not nil)", "t");
+    test_eval_one("(not t)", "nil");
+
+    /* Lambda */
+    test_eval_one("((lambda (x) (+ x 1)) 41)", "42");
+    test_eval_one("((lambda (x y) (+ x y)) 3 4)", "7");
+
+    /* Begin */
+    test_eval_one("(begin 1 2 3)", "3");
+
+    /* Define and use */
+    eval(read_str("(define x 42)"), NIL_VAL);
+    test_eval_one("x", "42");
+
+    eval(read_str("(define double (lambda (n) (* n 2)))"), NIL_VAL);
+    test_eval_one("(double 21)", "42");
+
+    /* Higher-order */
+    eval(read_str("(define apply-twice (lambda (f x) (f (f x))))"), NIL_VAL);
+    test_eval_one("(apply-twice double 5)", "20");
+
+    /* Closure */
+    eval(read_str("(define make-adder (lambda (n) (lambda (x) (+ n x))))"), NIL_VAL);
+    eval(read_str("(define add5 (make-adder 5))"), NIL_VAL);
+    test_eval_one("(add5 10)", "15");
+
+    /* Recursion */
+    eval(read_str("(define fact (lambda (n) (if (= n 0) 1 (* n (fact (- n 1))))))"), NIL_VAL);
+    test_eval_one("(fact 5)", "120");
+
+    puts_str("eval ok\n");
 }
 
 int main() {
     heap_init();
     symbol_init();
+    eval_init();
     test_scaffold();
+    test_reader();
+    test_eval();
     return 0;
 }
