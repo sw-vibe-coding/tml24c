@@ -8,8 +8,9 @@
 void putc_uart(int ch) {
     /* Bounded TX busy wait — prevents infinite spin if emulator
      * doesn't tick UART between instructions (e.g., WASM batch mode).
-     * 100 iterations is enough for the 10-cycle TX busy default. */
-    int tries = 100;
+     * 50000 iterations: ~0.1s at 500K IPS, ~0.5s at 100K IPS.
+     * Enough for real hardware TX but won't hang a browser tab. */
+    int tries = 50000;
     while ((*(char *)UART_STATUS & 0x80) && tries > 0) {
         tries = tries - 1;
     }
