@@ -33,8 +33,17 @@ int is_sym_char(int ch) {
 }
 
 void skip_whitespace() {
-    while (is_whitespace(*read_ptr)) {
-        read_ptr = read_ptr + 1;
+    while (1) {
+        if (is_whitespace(*read_ptr)) {
+            read_ptr = read_ptr + 1;
+        } else if (*read_ptr == ';') {
+            /* Skip ; comment to end of line or string */
+            while (*read_ptr && *read_ptr != '\n') {
+                read_ptr = read_ptr + 1;
+            }
+        } else {
+            return;
+        }
     }
 }
 
@@ -208,12 +217,18 @@ int read_expr() {
         return cons(uq_sym, cons(val, NIL_VAL));
     }
 
-    /* # dispatch: #t #f #xNN */
+    /* # dispatch: #t #f #xNN #_ */
     if (ch == '#') {
         int next = *(read_ptr + 1);
         if (next == 'x') { return read_hex(); }
         if (next == 't') { read_ptr = read_ptr + 2; return T_VAL; }
         if (next == 'f') { read_ptr = read_ptr + 2; return NIL_VAL; }
+        if (next == '_') {
+            /* Datum comment: #_ expr — read and discard next form */
+            read_ptr = read_ptr + 2;
+            read_expr();
+            return read_expr();
+        }
     }
 
     /* negative number: '-' followed by digit */
