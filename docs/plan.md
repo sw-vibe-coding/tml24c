@@ -337,6 +337,111 @@ Usage:
 
 **Limitations:** Without mutable state (`set!`), each `defmethod` creates a new multi-method object rather than mutating the existing one. A `set!` primitive or mutable cells would make the API cleaner.
 
+### `set!` — Mutable Assignment
+
+A `set!` special form that modifies an existing binding in the environment. Small C change: walk the env alist to find the binding, overwrite the cdr.
+
+```lisp
+(define x 0)
+(set! x 42)
+x  ;; => 42
+```
+
+**Why it matters:** `set!` is the key enabler for several Clojure features:
+- **Memoized lazy sequences** — cache forced thunk results
+- **Atoms** (`atom`, `swap!`, `deref`) — Clojure's core state model, trivially built on `set!`
+- **Cleaner multi-methods** — mutate dispatch table in place instead of rebinding
+- **Counters, accumulators** — common imperative patterns
+
+**Effort:** ~10 lines of C in eval.h. Walk env alist, find binding, set cdr.
+
+### Lazy Sequences
+
+Clojure's lazy sequences evaluate elements on demand. The core mechanism already exists in tml24c — closures are thunks:
+
+```lisp
+;; Lazy cons: tail is a thunk
+(define lazy-cons (lambda (h t) (cons h t)))
+(define lazy-car car)
+(define lazy-cdr (lambda (s)
+  (let ((t (cdr s))) (if (fn? t) (t) t))))
+
+;; Infinite sequence
+(define integers-from (lambda (n)
+  (lazy-cons n (lambda () (integers-from (+ n 1))))))
+
+;; Take first 5 from infinite sequence
+(lazy-take 5 (integers-from 0))  ;; => (0 1 2 3 4)
+```
+
+Without `set!`, forcing the same lazy-cdr twice recomputes the thunk. With `set!`, the result can be cached on first force (memoized lazy sequences).
+
+**Useful lazy operations:** `iterate`, `repeat`, `cycle`, `take-while`, `drop-while`.
+
+**Effort:** Prelude definitions only (no C changes). Memoized version needs `set!`.
+
+### Threading Macros (`->` and `->>`)
+
+Clojure's most popular syntactic feature. Rewrites nested calls as a readable pipeline:
+
+```lisp
+;; Without threading (inside-out reading)
+(filter positive? (map square (range 10)))
+
+;; With ->> (left-to-right reading)
+(->> (range 10) (map square) (filter positive?))
+```
+
+`->` threads as first argument, `->>` threads as last argument:
+```lisp
+(-> x (f a) (g b))   ;; => (g (f x a) b)
+(->> x (f a) (g b))  ;; => (g a (f x b))
+```
+
+**Effort:** Recursive macros using quasiquote. ~10 lines of prelude Lisp each. Needs variadic macro params (rest args), which we have.
+
+### Additional Prelude Functions (Clojure-inspired)
+
+These are all pure Lisp — no C changes needed:
+
+| Function | Definition | Notes |
+|----------|-----------|-------|
+| `partial` | `(lambda rest (apply f (append args rest)))` | Partial function application |
+| `iterate` | `(lazy-cons x (lambda () (iterate f (f x))))` | Needs lazy-cons |
+| `take-while` | Eager version: recurse while pred holds | |
+| `drop-while` | Skip while pred holds, return rest | |
+| `group-by` | Build alist of key→list via reduce | |
+| `frequencies` | Count occurrences via reduce + alist | |
+| `juxt` | `((juxt f g) x)` => `(list (f x) (g x))` | |
+| `doseq` | Macro over for-each | |
+| `dotimes` | Macro over range + for-each | |
+
+### Structural Sharing
+
+Cons lists already share structure naturally:
+```lisp
+(define a (list 3 4 5))
+(define b (cons 2 a))   ;; shares a's tail
+(define c (cons 1 a))   ;; also shares a's tail
+```
+
+Clojure's persistent vectors and maps use hash array mapped tries (HAMTs) for O(log32 n) updates sharing ~97% of old structure. On tml24c this would require:
+- 32-way branching nodes (~32 heap cells each)
+- Hash function for map keys
+- Bitmap-indexed node compression
+- ~500+ lines of C
+
+With 4096 heap cells, a persistent vector of 100 elements would consume ~130 cells. Feasible but tight. Lower priority than `set!`, lazy seqs, and threading macros.
+
+### Recommended Implementation Order
+
+1. **`set!`** — tiny C change, unlocks memoization + atoms + mutation
+2. **`->` / `->>`** — pure Lisp macros, big readability win
+3. **Lazy sequences** — prelude definitions, memoized version needs `set!`
+4. **`partial` + utility functions** — one-liners
+5. **Multi-methods** — pure Lisp, already designed
+6. **Persistent data structures** — significant effort, low priority
+
 ### Interactive Terminal Improvements
 
 The `cor24-run --terminal` mode enables real-time REPL interaction. Potential enhancements:
