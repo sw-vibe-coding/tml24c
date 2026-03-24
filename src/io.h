@@ -29,17 +29,30 @@ void halt() {
 
 int read_line(char *buf, int max) {
     int i = 0;
+    int depth = 0;   /* paren nesting depth */
+    int in_str = 0;  /* inside a string literal */
     while (i < max - 1) {
         int ch = getc_uart();
-        if (ch == '\n' || ch == '\r') {
-            break;
-        }
         if (ch == 4) {
             /* Ctrl-D: EOF */
             return -1;
         }
+        if (ch == '\n' || ch == '\r') {
+            /* Only break when parens are balanced */
+            if (depth <= 0) break;
+            /* Inside unbalanced parens: treat newline as space */
+            buf[i] = ' ';
+            i = i + 1;
+            continue;
+        }
         buf[i] = ch;
         i = i + 1;
+        /* Track paren depth (ignore parens inside strings) */
+        if (ch == 34) { in_str = 1 - in_str; }
+        if (!in_str) {
+            if (ch == '(') { depth = depth + 1; }
+            if (ch == ')') { depth = depth - 1; }
+        }
     }
     buf[i] = 0;
     return i;

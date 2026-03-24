@@ -1,0 +1,36 @@
+;; multiline.l24 -- Multi-line expression demo
+;;
+;; Run with: just eval demos/multiline.l24
+;;
+;; The REPL now tracks paren depth and continues reading
+;; across newlines until parens balance.
+
+(define factorial
+  (lambda (n)
+    (if (= n 0)
+      1
+      (* n (factorial (- n 1))))))
+(factorial 6)
+
+(define classify
+  (lambda (n)
+    (cond
+      ((< n 0) 'negative)
+      ((= n 0) 'zero)
+      (t 'positive))))
+(classify -5)
+(classify 0)
+(classify 7)
+
+(define verse
+  (lambda (n)
+    (begin
+      (display (number->string n))
+      (display (if (= n 1)
+        " bottle"
+        " bottles"))
+      (display " of beer.\n"))))
+(verse 1)
+(verse 5)
+
+(exit)
