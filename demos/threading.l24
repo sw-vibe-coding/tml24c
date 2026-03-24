@@ -1,0 +1,24 @@
+;; threading.l24 -- Thread-first (->) and thread-last (->>) macros
+;;
+;; Run with: just eval demos/threading.l24
+
+;; -> threads value as first argument
+(-> 1 (+ 2))
+(-> (-> 1 (+ 2)) (* 10))
+
+;; ->> threads value as last argument
+(->> (range 5) (map (lambda (x) (* x x))))
+(->> (list -2 -1 0 1 2) (filter positive?))
+
+;; Nested threading for pipelines
+(-> (-> (-> 100 (- 10)) (- 5)) (* 2))
+
+;; Practical: list processing pipeline
+(->> (range 10) (filter (lambda (x) (> x 5))))
+
+;; Combine with other features
+(define data (list (cons 'a 1) (cons 'b 2) (cons 'c 3)))
+(->> data (assoc 'b))
+(-> (->> data (assoc 'b)) (cdr))
+
+(exit)

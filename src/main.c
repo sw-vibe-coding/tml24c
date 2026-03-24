@@ -278,6 +278,11 @@ void load_prelude() {
     eval_str("(define cond-expand (lambda (clauses) (if (null? clauses) nil (if (eq? (caar clauses) 't) (cadr (car clauses)) `(if ,(caar clauses) ,(cadr (car clauses)) ,(cond-expand (cdr clauses)))))))");
     eval_str("(defmacro cond clauses (cond-expand clauses))");
 
+    /* Threading macros: -> threads x as first arg, ->> as last arg.
+     * Two-form version; nest for more: (-> (-> x f) g) */
+    eval_str("(defmacro -> (x form) (cons (car form) (cons x (cdr form))))");
+    eval_str("(defmacro ->> (x form) (append form (list x)))");
+
     /* Comparison operators */
     eval_str("(define > (lambda (a b) (< b a)))");
     eval_str("(define >= (lambda (a b) (not (< a b))))");
