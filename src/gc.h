@@ -33,7 +33,7 @@ void gc_init() {
 
 int gc_protect(int val) {
     if (gc_root_count >= MAX_GC_ROOTS) {
-        puts_str("GC:roots\n");
+        puts_str("PANIC:GC root stack full\n");
         asm("_gcr_halt:");
         asm("bra _gcr_halt");
     }
@@ -181,7 +181,11 @@ int gc_alloc_cell() {
     }
 
     /* Truly out of memory */
-    puts_str("OOM\n");
+    puts_str("PANIC:OOM heap=");
+    print_int(heap_next);
+    puts_str(" free=0 gc=");
+    print_int(gc_collections);
+    putc_uart(10);
     asm("_oom2_halt:");
     asm("bra _oom2_halt");
     return 0;

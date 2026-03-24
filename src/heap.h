@@ -20,7 +20,9 @@ int alloc_cell() {
         return gc_alloc_cell();
     }
     if (heap_next >= HEAP_SIZE) {
-        puts_str("OOM\n");
+        puts_str("PANIC:OOM (pre-GC) heap=");
+        print_int(heap_next);
+        putc_uart(10);
         asm("_oom_halt:");
         asm("bra _oom_halt");
     }

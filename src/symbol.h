@@ -48,13 +48,19 @@ int intern(char *name) {
         i = i + 1;
     }
     if (sym_count >= MAX_SYMBOLS) {
-        puts_str("SYM\n");
+        puts_str("PANIC:symbol table full (");
+        print_int(sym_count);
+        puts_str(")\n");
         asm("_sym_halt:");
         asm("bra _sym_halt");
     }
     int len = str_len(name);
     if (name_pool_next + len + 1 > NAME_POOL_SIZE) {
-        puts_str("SYM2\n");
+        puts_str("PANIC:symbol name pool full (");
+        print_int(name_pool_next);
+        puts_str("/");
+        print_int(NAME_POOL_SIZE);
+        puts_str(")\n");
         asm("_sym2_halt:");
         asm("bra _sym2_halt");
     }

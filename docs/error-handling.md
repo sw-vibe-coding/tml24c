@@ -27,10 +27,15 @@ This matches the bare-metal target: no OS, no stack unwinding, no signal handler
 - `ERR:div-by-zero`, `ERR:not-number`, `ERR:car-of-non-pair`, `ERR:cdr-of-non-pair`
 - `ERR:unbound`, `ERR:not-fn`, `ERR:set!-unbound`
 
-**Hard errors** halt the CPU (program stops, emulator exits):
-- `OOM` — heap fully exhausted after GC
-- `STR-OOM` — string pool full
-- `GC:roots` — too many protected roots
+**Hard errors (PANIC)** print diagnostics then halt the CPU:
+- `PANIC:OOM heap=N free=0 gc=N` — heap exhausted after GC, shows heap size and collection count
+- `PANIC:OOM (pre-GC) heap=N` — heap full before GC enabled (during init)
+- `PANIC:STR-OOM pool=N/2048` — string pool full, shows usage
+- `PANIC:GC root stack full` — too many protected roots (256 max)
+- `PANIC:symbol table full (N)` — 256 symbols interned
+- `PANIC:symbol name pool full (N/2048)` — symbol names exhausted
+
+All PANIC messages include resource usage numbers to aid debugging. The CPU halts after printing (self-branch detected by emulator).
 
 ## Cascading Errors
 

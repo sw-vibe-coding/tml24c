@@ -24,7 +24,11 @@ void string_init() {
  * Max pool = 2048, max string = 2048. */
 int make_string(char *s, int len) {
     if (str_pool_next + len + 1 > STR_POOL_SIZE) {
-        puts_str("STR-OOM\n");
+        puts_str("PANIC:STR-OOM pool=");
+        print_int(str_pool_next);
+        puts_str("/");
+        print_int(STR_POOL_SIZE);
+        putc_uart(10);
         asm("_str_halt:");
         asm("bra _str_halt");
     }
@@ -84,7 +88,11 @@ int string_append(int a, int b) {
     int lb = string_len(b);
     int total = la + lb;
     if (str_pool_next + total + 1 > STR_POOL_SIZE) {
-        puts_str("STR-OOM\n");
+        puts_str("PANIC:STR-OOM pool=");
+        print_int(str_pool_next);
+        puts_str("/");
+        print_int(STR_POOL_SIZE);
+        putc_uart(10);
         asm("_str2_halt:");
         asm("bra _str2_halt");
     }
