@@ -294,13 +294,48 @@ The standard library prelude (map, filter, foldr, reverse, abs, when, unless, et
 
 4. **Prelude-as-file** — Move the prelude definitions from C strings to a `.l24` file that gets embedded at compile time (e.g., via `xxd -i` or a build step that generates a C header from the file). This makes the prelude editable without touching C code.
 
-### Quasiquote and Splicing
+### Multi-Methods (Clojure-inspired)
 
-The plan calls for quasiquote (`` ` ``), unquote (`,`), and splice (`,@`) support. These are not yet implemented. Adding them would make macro authoring much more ergonomic — the current `(list 'if cond body)` pattern is verbose for complex macros.
+Clojure multi-methods dispatch on an arbitrary function, allowing open extension without modifying existing code. A tml24c version could work using association lists as dispatch tables:
 
-### Strings
+```lisp
+;; Type dispatch function
+(define type-of (lambda (x)
+  (cond ((number? x) 'number)
+        ((string? x) 'string)
+        ((pair? x)   'pair)
+        ((null? x)   'nil)
+        (t           'symbol))))
 
-Phase 4 (strings) is not yet implemented. String support would improve error messages and enable practical I/O programs.
+;; Multi-method: dispatch table + dispatch function
+(define make-multi (lambda (dispatch-fn)
+  (list dispatch-fn nil)))
+
+(define defmethod (lambda (multi type-val handler)
+  (let ((dispatch-fn (car multi))
+        (table (cadr multi)))
+    (list dispatch-fn (cons (cons type-val handler) table)))))
+
+(define invoke-multi (lambda (multi x)
+  (let ((dispatch-fn (car multi))
+        (table (cadr multi)))
+    (let ((key ((car multi) x)))
+      (let ((entry (assoc key table)))
+        (if entry ((cdr entry) x) nil))))))
+```
+
+Usage:
+```lisp
+(define describe (make-multi type-of))
+(define describe (defmethod describe 'number (lambda (x) (display "a number"))))
+(define describe (defmethod describe 'string (lambda (x) (display "a string"))))
+(invoke-multi describe 42)      ;; prints "a number"
+(invoke-multi describe "hello") ;; prints "a string"
+```
+
+**Status:** Pure Lisp implementation, no C changes needed. Feasible now that strings, quasiquote, let, and cond are available. Could be added as a prelude library or a `.l24` file.
+
+**Limitations:** Without mutable state (`set!`), each `defmethod` creates a new multi-method object rather than mutating the existing one. A `set!` primitive or mutable cells would make the API cleaner.
 
 ### Interactive Terminal Improvements
 
