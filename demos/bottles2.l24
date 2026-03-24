@@ -1,0 +1,25 @@
+;; bottles2.l24 -- Bottles of Beer (trampoline version)
+;;
+;; Faithful translation of demos/bottles2.clj.
+;; Uses mutual recursion with trampolining,
+;; like the Clojure version uses #(fn) thunks.
+;;
+;; Run with: just eval demos/bottles2.l24
+
+;; bottles: "N bottle(s)" -- uses display (str too expensive on COR24)
+(define bottles (lambda (n) (begin (display (number->string n)) (if (= 1 n) (display " bottle") (display " bottles")))))
+
+;; odd: print "N bottles of beer on the wall, N bottles of beer."
+;; Returns thunk -> (even (- n 1)), or nil if done
+(define odd-verse (lambda (n) (if (positive? n) (begin (bottles n) (display " of beer on the wall, ") (bottles n) (display " of beer.\n") (lambda () (even-verse (- n 1)))) nil)))
+
+;; even: print "Take one down... N bottles of beer on the wall."
+;; Returns thunk -> (odd n), or nil if done
+(define even-verse (lambda (n) (begin (display "Take one down and pass it around, ") (bottles n) (display " of beer on the wall.\n\n") (if (positive? n) (lambda () (odd-verse n)) nil))))
+
+;; sing: trampoline the mutual recursion
+(define sing (lambda (n) (trampoline (lambda () (odd-verse n)))))
+
+(sing 5)
+
+(exit)

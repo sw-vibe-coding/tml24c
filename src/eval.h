@@ -60,6 +60,7 @@ int sym_unquote_splicing;
 #define PRIM_HEAP_USED  32
 #define PRIM_HEAP_SIZE  33
 #define PRIM_NUM_TO_STR 34
+#define PRIM_FNQP       35
 
 /* --- Extended object accessors --- */
 
@@ -290,6 +291,11 @@ int apply_primitive(int id, int args) {
     }
     if (id == PRIM_HEAP_SIZE) {
         return MAKE_FIXNUM(HEAP_SIZE);
+    }
+    if (id == PRIM_FNQP) {
+        if (IS_EXTENDED(a) && ext_type(a) == ETYPE_CLOSURE) return T_VAL;
+        if (IS_EXTENDED(a) && ext_type(a) == ETYPE_PRIMITIVE) return T_VAL;
+        return NIL_VAL;
     }
     if (id == PRIM_NUM_TO_STR) {
         int n = FIXNUM_VAL(a);
@@ -549,4 +555,5 @@ void eval_init() {
     register_prim("heap-used", PRIM_HEAP_USED);
     register_prim("heap-size", PRIM_HEAP_SIZE);
     register_prim("number->string", PRIM_NUM_TO_STR);
+    register_prim("fn?", PRIM_FNQP);
 }

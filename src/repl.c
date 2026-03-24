@@ -90,6 +90,9 @@ void load_prelude() {
     eval_str("(define str2 (lambda (a b) (string-append (->str a) (->str b))))");
     eval_str("(define str (lambda args (reduce str2 \"\" args)))");
 
+    /* Trampoline: repeatedly call thunks until non-function result */
+    eval_str("(define trampoline (lambda (f) (let ((r (f))) (if (fn? r) (trampoline r) r))))");
+
     /* COR24-TB I/O addresses */
     eval_str("(define IO-LED #xFF0000)");
     eval_str("(define IO-SWITCH #xFF0000)");
