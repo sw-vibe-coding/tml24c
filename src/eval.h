@@ -178,22 +178,41 @@ int apply_primitive(int id, int args) {
         }
     }
 
-    if (id == PRIM_ADD) return MAKE_FIXNUM(FIXNUM_VAL(a) + FIXNUM_VAL(b));
-    if (id == PRIM_SUB) return MAKE_FIXNUM(FIXNUM_VAL(a) - FIXNUM_VAL(b));
-    if (id == PRIM_MUL) return MAKE_FIXNUM(FIXNUM_VAL(a) * FIXNUM_VAL(b));
-    if (id == PRIM_DIV) return MAKE_FIXNUM(FIXNUM_VAL(a) / FIXNUM_VAL(b));
-    if (id == PRIM_MOD) return MAKE_FIXNUM(FIXNUM_VAL(a) % FIXNUM_VAL(b));
-    if (id == PRIM_LT) {
-        if (FIXNUM_VAL(a) < FIXNUM_VAL(b)) return T_VAL;
-        return NIL_VAL;
-    }
-    if (id == PRIM_EQ_NUM) {
-        if (FIXNUM_VAL(a) == FIXNUM_VAL(b)) return T_VAL;
-        return NIL_VAL;
+    /* Arithmetic with type checks */
+    if (id == PRIM_ADD || id == PRIM_SUB || id == PRIM_MUL || id == PRIM_DIV || id == PRIM_MOD || id == PRIM_LT || id == PRIM_EQ_NUM) {
+        if (!IS_FIXNUM(a) || !IS_FIXNUM(b)) {
+            puts_str("ERR:not-number\n");
+            return NIL_VAL;
+        }
+        if (id == PRIM_ADD) return MAKE_FIXNUM(FIXNUM_VAL(a) + FIXNUM_VAL(b));
+        if (id == PRIM_SUB) return MAKE_FIXNUM(FIXNUM_VAL(a) - FIXNUM_VAL(b));
+        if (id == PRIM_MUL) return MAKE_FIXNUM(FIXNUM_VAL(a) * FIXNUM_VAL(b));
+        if (id == PRIM_DIV) {
+            if (FIXNUM_VAL(b) == 0) { puts_str("ERR:div-by-zero\n"); return NIL_VAL; }
+            return MAKE_FIXNUM(FIXNUM_VAL(a) / FIXNUM_VAL(b));
+        }
+        if (id == PRIM_MOD) {
+            if (FIXNUM_VAL(b) == 0) { puts_str("ERR:div-by-zero\n"); return NIL_VAL; }
+            return MAKE_FIXNUM(FIXNUM_VAL(a) % FIXNUM_VAL(b));
+        }
+        if (id == PRIM_LT) {
+            if (FIXNUM_VAL(a) < FIXNUM_VAL(b)) return T_VAL;
+            return NIL_VAL;
+        }
+        if (id == PRIM_EQ_NUM) {
+            if (FIXNUM_VAL(a) == FIXNUM_VAL(b)) return T_VAL;
+            return NIL_VAL;
+        }
     }
     if (id == PRIM_CONS) return cons(a, b);
-    if (id == PRIM_CAR) return car(a);
-    if (id == PRIM_CDR) return cdr(a);
+    if (id == PRIM_CAR) {
+        if (!IS_CONS(a)) { puts_str("ERR:car-of-non-pair\n"); return NIL_VAL; }
+        return car(a);
+    }
+    if (id == PRIM_CDR) {
+        if (!IS_CONS(a)) { puts_str("ERR:cdr-of-non-pair\n"); return NIL_VAL; }
+        return cdr(a);
+    }
     if (id == PRIM_LIST) return args;
     if (id == PRIM_NULLP) {
         if (IS_NIL(a)) return T_VAL;
