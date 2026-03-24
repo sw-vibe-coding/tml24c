@@ -6,7 +6,13 @@
 #define UART_STATUS 0xFF0101
 
 void putc_uart(int ch) {
-    while (*(char *)UART_STATUS & 0x80) {}
+    /* Bounded TX busy wait — prevents infinite spin if emulator
+     * doesn't tick UART between instructions (e.g., WASM batch mode).
+     * 100 iterations is enough for the 10-cycle TX busy default. */
+    int tries = 100;
+    while ((*(char *)UART_STATUS & 0x80) && tries > 0) {
+        tries = tries - 1;
+    }
     *(char *)UART_DATA = ch;
 }
 
