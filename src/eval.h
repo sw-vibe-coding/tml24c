@@ -495,11 +495,20 @@ int eval(int expr, int env) {
         continue;
     }
 
-    /* define */
+    /* define — supports (define x val) and (define (f params...) body) */
     if (head == sym_define) {
-        int sym = car(args);
+        int first = car(args);
+        if (IS_CONS(first)) {
+            /* (define (f x y) body) => (define f (lambda (x y) body)) */
+            int sym = car(first);
+            int params = cdr(first);
+            int body = car(cdr(args));
+            int val = make_closure(params, body, env);
+            global_env = env_extend(sym, val, global_env);
+            return val;
+        }
         int val = eval(car(cdr(args)), env);
-        global_env = env_extend(sym, val, global_env);
+        global_env = env_extend(first, val, global_env);
         return val;
     }
 
