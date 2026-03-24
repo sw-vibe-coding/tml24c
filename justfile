@@ -5,55 +5,71 @@ set quiet
 tc24r := "tc24r"
 cor24_run := "cor24-run"
 
-# Build the test binary (with compiler + test suite)
+# === Build targets ===
+
 build:
     mkdir -p build
     {{tc24r}} src/main.c -o build/tml24c.s
 
-# Build the REPL with compiled-in prelude (legacy)
-build-repl:
+build-minimal:
     mkdir -p build
-    {{tc24r}} src/repl.c -o build/repl.s
+    {{tc24r}} src/repl-minimal.c -o build/repl-minimal.s
 
-# Build the bare REPL (no prelude — loaded from .l24 files)
+build-standard:
+    mkdir -p build
+    {{tc24r}} src/repl-standard.c -o build/repl-standard.s
+
+build-full:
+    mkdir -p build
+    {{tc24r}} src/repl-full.c -o build/repl-full.s
+
 build-bare:
     mkdir -p build
     {{tc24r}} src/repl-bare.c -o build/repl-bare.s
 
-# Interactive REPL with compiled-in prelude (Ctrl-] to exit)
-run: build-repl
-    {{cor24_run}} --run build/repl.s --terminal --echo --speed 0
+# === REPL: precompiled preludes ===
 
-# REPL with selectable prelude: just repl tiny|standard|full
-repl prelude="standard": build-bare
-    #!/usr/bin/env bash
-    case "{{prelude}}" in
-        tiny)     cat prelude/tiny.l24 ;;
-        standard) grep -v '^;;' prelude/standard.l24 ;;
-        full)     grep -v '^;;' prelude/standard.l24; grep -v '^;;' prelude/full.l24 ;;
-        *)        echo "Unknown prelude: {{prelude}}"; exit 1 ;;
-    esac | {{cor24_run}} --run build/repl-bare.s --terminal --echo --speed 0
+# Interactive REPL with minimal prelude
+run-minimal: build-minimal
+    {{cor24_run}} --run build/repl-minimal.s --terminal --echo --speed 0
 
-# Evaluate a .l24 file (compiled-in standard prelude)
-eval file: build-repl
+# Interactive REPL with standard prelude (default)
+run: build-standard
+    {{cor24_run}} --run build/repl-standard.s --terminal --echo --speed 0
+
+# Interactive REPL with full prelude
+run-full: build-full
+    {{cor24_run}} --run build/repl-full.s --terminal --echo --speed 0
+
+# === REPL: custom prelude from .l24 file (slow, flexible) ===
+
+# Load a custom .l24 prelude then enter REPL
+run-custom prelude: build-bare
+    grep -v '^;;' "{{prelude}}" | {{cor24_run}} --run build/repl-bare.s --terminal --echo --speed 0
+
+# === Eval ===
+
+# Evaluate a .l24 file with standard prelude
+eval file: build-standard
     #!/usr/bin/env bash
-    grep -v '^;;' "{{file}}" | {{cor24_run}} --run build/repl.s --terminal --speed 0 -n 500000000 2>&1 | \
+    grep -v '^;;' "{{file}}" | {{cor24_run}} --run build/repl-standard.s --terminal --speed 0 -n 500000000 2>&1 | \
         grep -v -E '^Assembled |Executed [0-9]+ instructions|^\[CPU'
 
-# Evaluate with bare REPL + file-based prelude (slower, flexible)
-eval-bare file prelude="standard": build-bare
+# Evaluate with full prelude
+eval-full file: build-full
     #!/usr/bin/env bash
-    case "{{prelude}}" in
-        tiny)     cat prelude/tiny.l24 ;;
-        standard) grep -v '^;;' prelude/standard.l24 ;;
-        full)     grep -v '^;;' prelude/standard.l24; grep -v '^;;' prelude/full.l24 ;;
-        *)        echo "Unknown prelude: {{prelude}}"; exit 1 ;;
-    esac > /tmp/tml24c-prelude.tmp
-    { cat /tmp/tml24c-prelude.tmp; grep -v '^;;' "{{file}}"; } | \
+    grep -v '^;;' "{{file}}" | {{cor24_run}} --run build/repl-full.s --terminal --speed 0 -n 500000000 2>&1 | \
+        grep -v -E '^Assembled |Executed [0-9]+ instructions|^\[CPU'
+
+# Evaluate with custom prelude (slow: prelude loaded via UART)
+eval-custom file prelude: build-bare
+    #!/usr/bin/env bash
+    { grep -v '^;;' "{{prelude}}"; grep -v '^;;' "{{file}}"; } | \
         {{cor24_run}} --run build/repl-bare.s --terminal --speed 0 -n 500000000 2>&1 | \
         grep -v -E '^Assembled |Executed [0-9]+ instructions|^\[CPU'
 
-# Run all test suites
+# === Tests ===
+
 test: build
     #!/usr/bin/env bash
     set -euo pipefail
@@ -71,24 +87,21 @@ test: build
         exit 1
     fi
 
-# Blink D2 LED demo (Ctrl-] to exit)
-demo-blink: build-bare
-    { grep -v '^;;' prelude/standard.l24; grep -v '^;;' demos/blink.l24; } | \
-        {{cor24_run}} --run build/repl-bare.s --terminal --speed 500000
+# === Demos ===
 
-# 99 Bottles of Beer demos
-demo-bottles: build-bare
-    { grep -v '^;;' prelude/standard.l24; grep -v '^;;' demos/bottles.l24; } | \
-        {{cor24_run}} --run build/repl-bare.s --terminal --speed 0 -n 500000000
+demo-blink: build-standard
+    grep -v '^;;' demos/blink.l24 | {{cor24_run}} --run build/repl-standard.s --terminal --speed 500000
 
-demo-bottles2: build-bare
-    { grep -v '^;;' prelude/standard.l24; grep -v '^;;' prelude/full.l24; grep -v '^;;' demos/bottles2.l24; } | \
-        {{cor24_run}} --run build/repl-bare.s --terminal --speed 0 -n 500000000
+demo-bottles: build-standard
+    grep -v '^;;' demos/bottles.l24 | {{cor24_run}} --run build/repl-standard.s --terminal --speed 0 -n 500000000
 
-demo-bottles4: build-bare
-    { grep -v '^;;' prelude/standard.l24; grep -v '^;;' demos/bottles4.l24; } | \
-        {{cor24_run}} --run build/repl-bare.s --terminal --speed 0 -n 500000000
+demo-bottles2: build-full
+    grep -v '^;;' demos/bottles2.l24 | {{cor24_run}} --run build/repl-full.s --terminal --speed 0 -n 500000000
 
-# Clean build artifacts
+demo-bottles4: build-standard
+    grep -v '^;;' demos/bottles4.l24 | {{cor24_run}} --run build/repl-standard.s --terminal --speed 0 -n 500000000
+
+# === Clean ===
+
 clean:
     rm -rf build

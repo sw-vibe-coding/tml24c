@@ -1,55 +1,40 @@
-/* tml24c REPL mode -- no tests, straight to interactive eval */
+#pragma once
 
-#include "tml.h"
-#include "io.h"
-#include "heap.h"
-#include "symbol.h"
-#include "string.h"
-#include "print.h"
-#include "read.h"
-#include "eval.h"
-#include "gc.h"
-
-void eval_str(char *s) {
-    eval(read_str(s), global_env);
-}
+/* prelude-full.h -- Everything: standard + lazy, threading, anaphora, etc.
+ * Recommend --stack-kilobytes 8 for deep call chains. */
 
 void load_prelude() {
+    /* === Standard prelude (inlined, not #included, for single-compilation) === */
+
     /* List operations */
     eval_str("(define map (lambda (f lst) (if (null? lst) lst (cons (f (car lst)) (map f (cdr lst))))))");
     eval_str("(define filter (lambda (p lst) (if (null? lst) lst (if (p (car lst)) (cons (car lst) (filter p (cdr lst))) (filter p (cdr lst))))))");
+    eval_str("(define reduce (lambda (f init lst) (if (null? lst) init (reduce f (f init (car lst)) (cdr lst)))))");
     eval_str("(define foldr (lambda (f init lst) (if (null? lst) init (f (car lst) (foldr f init (cdr lst))))))");
     eval_str("(define length (lambda (lst) (if (null? lst) 0 (+ 1 (length (cdr lst))))))");
     eval_str("(define append (lambda (a b) (if (null? a) b (cons (car a) (append (cdr a) b)))))");
-    eval_str("(define reverse (lambda (lst) (foldr (lambda (x acc) (append acc (list x))) '() lst)))");
+    eval_str("(define reverse (lambda (lst) (reduce (lambda (acc x) (cons x acc)) nil lst)))");
     eval_str("(define nth (lambda (n lst) (if (= n 0) (car lst) (nth (- n 1) (cdr lst)))))");
 
-    /* Convenience macros */
+    /* Macros */
     eval_str("(defmacro when (cond body) `(if ,cond ,body nil))");
     eval_str("(defmacro unless (cond body) `(if ,cond nil ,body))");
-
-    /* let: (let ((x 1) (y 2)) body) => ((lambda (x y) body) 1 2) */
     eval_str("(defmacro let (bindings body) `((lambda ,(map car bindings) ,body) ,@(map cadr bindings)))");
-
-    /* and/or (two-arg, short-circuit via if) */
     eval_str("(defmacro and (a b) `(if ,a ,b nil))");
     eval_str("(defmacro or (a b) `(if ,a ,a ,b))");
-
-    /* cond: (cond (test1 expr1) (test2 expr2) ... (t default)) */
     eval_str("(define cond-expand (lambda (clauses) (if (null? clauses) nil (if (eq? (caar clauses) 't) (cadr (car clauses)) `(if ,(caar clauses) ,(cadr (car clauses)) ,(cond-expand (cdr clauses)))))))");
     eval_str("(defmacro cond clauses (cond-expand clauses))");
 
-    /* Threading macros: -> threads x as first arg, ->> as last arg.
-     * Two-form version; nest for more: (-> (-> x f) g) */
+    /* Threading macros */
     eval_str("(defmacro -> (x form) (cons (car form) (cons x (cdr form))))");
     eval_str("(defmacro ->> (x form) (append form (list x)))");
 
-    /* Comparison operators */
+    /* Comparison */
     eval_str("(define > (lambda (a b) (< b a)))");
     eval_str("(define >= (lambda (a b) (not (< a b))))");
     eval_str("(define <= (lambda (a b) (not (< b a))))");
 
-    /* Numeric predicates */
+    /* Numeric */
     eval_str("(define zero? (lambda (n) (= n 0)))");
     eval_str("(define positive? (lambda (n) (< 0 n)))");
     eval_str("(define negative? (lambda (n) (< n 0)))");
@@ -62,9 +47,6 @@ void load_prelude() {
     eval_str("(define caddr (lambda (x) (car (cdr (cdr x)))))");
     eval_str("(define caar (lambda (x) (car (car x))))");
     eval_str("(define cdar (lambda (x) (cdr (car x))))");
-
-    /* Clojure-inspired: reduce (left fold) */
-    eval_str("(define reduce (lambda (f init lst) (if (null? lst) init (reduce f (f init (car lst)) (cdr lst)))))");
 
     /* Function combinators */
     eval_str("(define identity (lambda (x) x))");
@@ -86,16 +68,28 @@ void load_prelude() {
     eval_str("(define zip (lambda (a b) (if (null? a) nil (if (null? b) nil (cons (list (car a) (car b)) (zip (cdr a) (cdr b)))))))");
     eval_str("(define flatten (lambda (lst) (if (null? lst) nil (if (pair? (car lst)) (append (flatten (car lst)) (flatten (cdr lst))) (cons (car lst) (flatten (cdr lst)))))))");
 
-    /* Association lists */
-    eval_str("(define assoc (lambda (key alist) (if (null? alist) nil (if (eq? key (caar alist)) (car alist) (assoc key (cdr alist))))))");
-    eval_str("(define get (lambda (key alist default) (if (null? alist) default (if (eq? key (caar alist)) (cdar alist) (get key (cdr alist) default)))))");
-
     /* String utilities */
     eval_str("(define ->str (lambda (x) (cond ((string? x) x) ((number? x) (number->string x)) (t \"\"))))");
     eval_str("(define str2 (lambda (a b) (string-append (->str a) (->str b))))");
     eval_str("(define str (lambda args (reduce str2 \"\" args)))");
 
-    /* Lazy sequences: thunk-in-cdr, memoized on force via set! */
+    /* Iteration */
+    eval_str("(define for-each (lambda (f lst) (if (null? lst) nil (begin (f (car lst)) (for-each f (cdr lst))))))");
+
+    /* Utility functions */
+    eval_str("(define partial (lambda (f . args) (lambda rest (apply f (append args rest)))))");
+    eval_str("(define juxt (lambda (f g) (lambda (x) (list (f x) (g x)))))");
+    eval_str("(defmacro doseq (binding body) `(for-each (lambda (,(car binding)) ,body) ,(cadr binding)))");
+    eval_str("(defmacro dotimes (binding body) `(for-each (lambda (,(car binding)) ,body) (range ,(cadr binding))))");
+
+    /* Association lists */
+    eval_str("(define assoc (lambda (key alist) (if (null? alist) nil (if (eq? key (caar alist)) (car alist) (assoc key (cdr alist))))))");
+    eval_str("(define get (lambda (key alist default) (if (null? alist) default (if (eq? key (caar alist)) (cdar alist) (get key (cdr alist) default)))))");
+
+    /* Trampoline */
+    eval_str("(define trampoline (lambda (f) (let ((r (f))) (if (fn? r) (trampoline r) r))))");
+
+    /* Lazy sequences */
     eval_str("(define lazy-cons (lambda (h thk) (cons h (cons 'thunk thk))))");
     eval_str("(define lazy? (lambda (s) (and (pair? s) (and (pair? (cdr s)) (eq? (car (cdr s)) 'thunk)))))");
     eval_str("(define lazy-car car)");
@@ -108,61 +102,22 @@ void load_prelude() {
     eval_str("(define take-while (lambda (p lst) (if (null? lst) nil (if (p (car lst)) (cons (car lst) (take-while p (cdr lst))) nil))))");
     eval_str("(define drop-while (lambda (p lst) (if (null? lst) nil (if (p (car lst)) (drop-while p (cdr lst)) lst))))");
 
-    /* Iteration */
-    eval_str("(define for-each (lambda (f lst) (if (null? lst) nil (begin (f (car lst)) (for-each f (cdr lst))))))");
+    /* Anaphoric macros */
+    eval_str("(defmacro aif (test then else) `(let ((it ,test)) (if it ,then ,else)))");
+    eval_str("(defmacro awhen (test body) `(let ((it ,test)) (if it ,body nil)))");
+    eval_str("(defmacro aand (a b) `(let ((it ,a)) (if it ,b nil)))");
 
-    /* Utility functions (Clojure-inspired) */
-    eval_str("(define partial (lambda (f . args) (lambda rest (apply f (append args rest)))))");
-    eval_str("(define juxt (lambda (f g) (lambda (x) (list (f x) (g x)))))");
-    eval_str("(defmacro doseq (binding body) `(for-each (lambda (,(car binding)) ,body) ,(cadr binding)))");
-    eval_str("(defmacro dotimes (binding body) `(for-each (lambda (,(car binding)) ,body) (range ,(cadr binding))))");
+    /* Boolean aliases */
+    eval_str("(define true t)");
+    eval_str("(define false nil)");
 
-    /* Trampoline: repeatedly call thunks until non-function result */
-    eval_str("(define trampoline (lambda (f) (let ((r (f))) (if (fn? r) (trampoline r) r))))");
-
-    /* COR24-TB I/O addresses */
+    /* I/O constants */
     eval_str("(define IO-LED #xFF0000)");
     eval_str("(define IO-SWITCH #xFF0000)");
     eval_str("(define IO-UART-DATA #xFF0100)");
     eval_str("(define IO-UART-STATUS #xFF0101)");
     eval_str("(define IO-INT-ENABLE #xFF0010)");
-
-    /* I/O convenience functions */
     eval_str("(define set-leds (lambda (n) (poke IO-LED n)))");
     eval_str("(define get-leds (lambda () (peek IO-LED)))");
     eval_str("(define s2-pressed? (lambda () (= (% (peek IO-SWITCH) 2) 0)))");
-}
-
-void repl() {
-    char line[1024];
-    puts_str("> ");
-    while (1) {
-        int len = read_line(line, 1024);
-        if (len < 0) {
-            /* Ctrl-D: EOF */
-            puts_str("Bye.\n");
-            halt();
-        }
-        if (len == 0) {
-            puts_str("> ");
-            continue;
-        }
-        int expr = read_str(line);
-        int result = eval(expr, global_env);
-        print_val(result);
-        putc_uart('\n');
-        puts_str("> ");
-    }
-}
-
-int main() {
-    heap_init();
-    gc_init();
-    symbol_init();
-    string_init();
-    eval_init();
-    gc_enabled = 1;
-    load_prelude();
-    repl();
-    return 0;
 }
