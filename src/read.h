@@ -23,6 +23,7 @@ int is_sym_char(int ch) {
     if (ch == 0) return 0;
     if (is_whitespace(ch)) return 0;
     if (ch == '(' || ch == ')' || ch == '\'') return 0;
+    if (ch == '`' || ch == ',') return 0;
     if (ch == '.') return 0;
     return 1;
 }
@@ -151,6 +152,26 @@ int read_expr() {
         int val = read_expr();
         int quote_sym = intern("quote");
         return cons(quote_sym, cons(val, NIL_VAL));
+    }
+
+    if (ch == '`') {
+        read_ptr = read_ptr + 1;
+        int val = read_expr();
+        int qq_sym = intern("quasiquote");
+        return cons(qq_sym, cons(val, NIL_VAL));
+    }
+
+    if (ch == ',') {
+        read_ptr = read_ptr + 1;
+        if (*read_ptr == '@') {
+            read_ptr = read_ptr + 1;
+            int val = read_expr();
+            int splice_sym = intern("unquote-splicing");
+            return cons(splice_sym, cons(val, NIL_VAL));
+        }
+        int val = read_expr();
+        int uq_sym = intern("unquote");
+        return cons(uq_sym, cons(val, NIL_VAL));
     }
 
     /* hex literal: #xNN... */

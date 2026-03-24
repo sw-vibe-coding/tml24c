@@ -1,0 +1,27 @@
+;; quasiquote.l24 -- Quasiquote, unquote, and splicing demo
+
+;; Basic quasiquote (like quote but allows escapes)
+`(hello world)
+
+;; Unquote: evaluate inside a template
+(define name 'lisp)
+`(hello ,name)
+
+;; Splicing: insert list elements into template
+(define nums (list 1 2 3))
+`(before ,@nums after)
+
+;; Macro with quasiquote (much cleaner than list/cons)
+(defmacro my-when (cond body) `(if ,cond ,body nil))
+(my-when (< 1 2) 'yes)
+(my-when (< 2 1) 'yes)
+
+;; Swap macro
+(defmacro swap (a b) `(list ,b ,a))
+(swap 1 2)
+
+;; Code generation with quasiquote
+(define make-adder-code (lambda (n) `(lambda (x) (+ x ,n))))
+(make-adder-code 5)
+
+(exit)

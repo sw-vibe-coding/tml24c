@@ -21,6 +21,9 @@ int sym_define;
 int sym_lambda;
 int sym_defmacro;
 int sym_begin;
+int sym_quasiquote;
+int sym_unquote;
+int sym_unquote_splicing;
 /* Primitive IDs */
 #define PRIM_ADD     0
 #define PRIM_SUB     1
@@ -232,6 +235,58 @@ int apply_primitive(int id, int args) {
     return NIL_VAL;
 }
 
+/* --- Quasiquote expansion --- */
+
+int qq_expand(int tmpl, int env) {
+    /* Atom: return as-is (like quote) */
+    if (!IS_CONS(tmpl)) return tmpl;
+
+    int head = car(tmpl);
+
+    /* (unquote expr) => eval expr */
+    if (head == sym_unquote) {
+        return eval(car(cdr(tmpl)), env);
+    }
+
+    /* Process list element by element, handling splicing */
+    int result = NIL_VAL;
+    int tail = NIL_VAL;
+    int rest = tmpl;
+    while (IS_CONS(rest)) {
+        int elem = car(rest);
+        if (IS_CONS(elem) && car(elem) == sym_unquote_splicing) {
+            /* (unquote-splicing expr) => splice eval'd list */
+            int spliced = eval(car(cdr(elem)), env);
+            while (IS_CONS(spliced)) {
+                int cell = cons(car(spliced), NIL_VAL);
+                if (IS_NIL(result)) {
+                    result = cell;
+                } else {
+                    heap_cdr[PTR_IDX(tail)] = cell;
+                }
+                tail = cell;
+                spliced = cdr(spliced);
+            }
+        } else {
+            /* Recursively expand */
+            int expanded = qq_expand(elem, env);
+            int cell = cons(expanded, NIL_VAL);
+            if (IS_NIL(result)) {
+                result = cell;
+            } else {
+                heap_cdr[PTR_IDX(tail)] = cell;
+            }
+            tail = cell;
+        }
+        rest = cdr(rest);
+    }
+    /* Handle dotted pair tail */
+    if (!IS_NIL(rest) && !IS_NIL(tail)) {
+        heap_cdr[PTR_IDX(tail)] = qq_expand(rest, env);
+    }
+    return result;
+}
+
 int eval(int expr, int env) {
     /* Self-evaluating */
     if (IS_FIXNUM(expr)) return expr;
@@ -253,6 +308,11 @@ int eval(int expr, int env) {
     /* quote */
     if (head == sym_quote) {
         return car(args);
+    }
+
+    /* quasiquote */
+    if (head == sym_quasiquote) {
+        return qq_expand(car(args), env);
     }
 
     /* if */
@@ -352,6 +412,9 @@ void eval_init() {
     sym_lambda = intern("lambda");
     sym_defmacro = intern("defmacro");
     sym_begin = intern("begin");
+    sym_quasiquote = intern("quasiquote");
+    sym_unquote = intern("unquote");
+    sym_unquote_splicing = intern("unquote-splicing");
 
     register_prim("+", PRIM_ADD);
     register_prim("-", PRIM_SUB);
