@@ -1,0 +1,18 @@
+;; tco.l24 -- Tail-call optimization demo
+;;
+;; Without TCO, deep recursion blows the 8KB stack.
+;; With TCO, tail-recursive functions run in constant stack space.
+
+;; Count down from n to 0 (tail recursive)
+(define countdown (lambda (n) (if (= n 0) 'done (countdown (- n 1)))))
+(countdown 100)
+
+;; Sum 1..n via tail-recursive accumulator
+(define sum-acc (lambda (n acc) (if (= n 0) acc (sum-acc (- n 1) (+ acc n)))))
+(sum-acc 100 0)
+
+;; Fibonacci via tail recursion
+(define fib-acc (lambda (n a b) (if (= n 0) a (fib-acc (- n 1) b (+ a b)))))
+(fib-acc 10 0 1)
+
+(exit)

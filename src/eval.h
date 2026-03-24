@@ -288,6 +288,7 @@ int qq_expand(int tmpl, int env) {
 }
 
 int eval(int expr, int env) {
+  while (1) {
     /* Self-evaluating */
     if (IS_FIXNUM(expr)) return expr;
     if (IS_NIL(expr)) return expr;
@@ -315,15 +316,17 @@ int eval(int expr, int env) {
         return qq_expand(car(args), env);
     }
 
-    /* if */
+    /* if — tail call both branches */
     if (head == sym_if) {
         int cond_val = eval(car(args), env);
         if (!IS_NIL(cond_val)) {
-            return eval(car(cdr(args)), env);
+            expr = car(cdr(args));
+            continue;
         }
         int else_part = cdr(cdr(args));
         if (IS_NIL(else_part)) return NIL_VAL;
-        return eval(car(else_part), env);
+        expr = car(else_part);
+        continue;
     }
 
     /* define */
@@ -351,32 +354,49 @@ int eval(int expr, int env) {
         return mac;
     }
 
-    /* begin */
+    /* begin — eval all but last, tail call last */
     if (head == sym_begin) {
-        int result = NIL_VAL;
-        while (!IS_NIL(args)) {
-            result = eval(car(args), env);
+        if (IS_NIL(args)) return NIL_VAL;
+        while (!IS_NIL(cdr(args))) {
+            eval(car(args), env);
             args = cdr(args);
         }
-        return result;
+        expr = car(args);
+        continue;
     }
 
     /* Function call: eval head */
     int fn = eval(head, env);
 
-    /* Macro expansion: apply with unevaluated args, then eval result */
+    /* Macro expansion — tail call the expanded form */
     if (IS_EXTENDED(fn)) {
         if (ext_type(fn) == ETYPE_MACRO) {
             int mac_env = env_bind(closure_params(fn), args, closure_env(fn));
             int expanded = eval(closure_body(fn), mac_env);
-            return eval(expanded, env);
+            expr = expanded;
+            continue;
         }
     }
 
     /* Evaluate arguments */
     int evaled_args = eval_list(args, env);
 
-    return apply_fn(fn, evaled_args);
+    /* Closure application — tail call the body */
+    if (IS_EXTENDED(fn)) {
+        int fn_type = ext_type(fn);
+        if (fn_type == ETYPE_CLOSURE) {
+            env = env_bind(closure_params(fn), evaled_args, closure_env(fn));
+            expr = closure_body(fn);
+            continue;
+        }
+        if (fn_type == ETYPE_PRIMITIVE) {
+            int id = FIXNUM_VAL(ext_data(fn));
+            return apply_primitive(id, evaled_args);
+        }
+    }
+    puts_str("ERR:not-fn\n");
+    return NIL_VAL;
+  }
 }
 
 int apply_fn(int fn, int args) {
