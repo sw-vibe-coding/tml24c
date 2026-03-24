@@ -46,6 +46,7 @@ int sym_begin;
 #define PRIM_DELAY  21
 #define PRIM_PRINTLN 22
 #define PRIM_NEWLINE 23
+#define PRIM_APPLY   24
 
 /* --- Extended object accessors --- */
 
@@ -223,6 +224,10 @@ int apply_primitive(int id, int args) {
         }
         return NIL_VAL;
     }
+    if (id == PRIM_APPLY) {
+        /* (apply f args-list) */
+        return apply_fn(a, b);
+    }
 
     return NIL_VAL;
 }
@@ -372,4 +377,5 @@ void eval_init() {
     register_prim("delay", PRIM_DELAY);
     register_prim("println", PRIM_PRINTLN);
     register_prim("newline", PRIM_NEWLINE);
+    register_prim("apply", PRIM_APPLY);
 }

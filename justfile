@@ -24,8 +24,8 @@ test: build
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Running tml24c tests..."
-    {{cor24_run}} --run build/tml24c.s --speed 0 -n 10000000 2>&1 | \
-        grep -E '^(scaffold|reader|eval|gc|compile) ok$' | sort > build/test-results.txt
+    echo "" | {{cor24_run}} --run build/tml24c.s --terminal --speed 0 -n 50000000 2>&1 | \
+        grep -E '^(scaffold|reader|eval|gc|compile) ok$' | sort -u > build/test-results.txt
     expected=5
     got=$(wc -l < build/test-results.txt | tr -d ' ')
     if [ "$got" -eq "$expected" ]; then
@@ -39,12 +39,14 @@ test: build
 
 # Evaluate a .l24 file
 eval file: build-repl
-    sed '/^;;/d' "{{file}}" | {{cor24_run}} --run build/repl.s --terminal --speed 0 -n 10000000 2>&1 | \
-        grep -v -E '^Assembled |Executed [0-9]+ instructions' | sed 's/^[> ]*//;/^$/d'
+    #!/usr/bin/env bash
+    grep -v '^;;' "{{file}}" | {{cor24_run}} --run build/repl.s --terminal --speed 0 -n 50000000 2>&1 | \
+        grep -v -E '^Assembled |Executed [0-9]+ instructions' | \
+        python3 scripts/strip-prompts.py
 
 # Blink D2 LED demo (Ctrl-] to exit)
 demo-blink: build-repl
-    sed '/^;;/d' demos/blink.l24 | {{cor24_run}} --run build/repl.s --terminal --speed 500000
+    grep -v '^;;' demos/blink.l24 | {{cor24_run}} --run build/repl.s --terminal --speed 500000
 
 # Clean build artifacts
 clean:

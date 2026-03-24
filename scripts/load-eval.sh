@@ -41,14 +41,15 @@ cd "$PROJECT_DIR"
 just build-repl
 
 # Build input: optional prelude + main file
-INPUT_CMD="sed '/^;;/d' \"$FILE\""
+INPUT_CMD="grep -v '^;;' \"$FILE\""
 if [[ -n "$PRELUDE" ]]; then
-    INPUT_CMD="{ sed '/^;;/d' \"$PRELUDE\"; sed '/^;;/d' \"$FILE\"; }"
+    INPUT_CMD="{ grep -v '^;;' \"$PRELUDE\"; grep -v '^;;' \"$FILE\"; }"
 fi
 
 if [[ $VERBOSE -eq 1 ]]; then
     eval "$INPUT_CMD" | cor24-run --run build/repl.s --terminal --speed 0 -n "$MAX_INSN" 2>&1
 else
     eval "$INPUT_CMD" | cor24-run --run build/repl.s --terminal --speed 0 -n "$MAX_INSN" 2>&1 | \
-        grep -v -E '^Assembled |Executed [0-9]+ instructions' | sed 's/^[> ]*//' | sed '/^$/d'
+        grep -v -E '^Assembled |Executed [0-9]+ instructions' | \
+        python3 scripts/strip-prompts.py
 fi

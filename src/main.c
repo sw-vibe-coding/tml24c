@@ -279,11 +279,38 @@ void load_prelude() {
     eval_str("(define min (lambda (a b) (if (< a b) a b)))");
     eval_str("(define max (lambda (a b) (if (< a b) b a)))");
 
-    /* List predicates */
+    /* List accessors */
     eval_str("(define cadr (lambda (x) (car (cdr x))))");
     eval_str("(define caddr (lambda (x) (car (cdr (cdr x)))))");
     eval_str("(define caar (lambda (x) (car (car x))))");
     eval_str("(define cdar (lambda (x) (cdr (car x))))");
+
+    /* Clojure-inspired: reduce (left fold) */
+    eval_str("(define reduce (lambda (f init lst) (if (null? lst) init (reduce f (f init (car lst)) (cdr lst)))))");
+
+    /* Function combinators */
+    eval_str("(define identity (lambda (x) x))");
+    eval_str("(define constantly (lambda (x) (lambda (y) x)))");
+    eval_str("(define complement (lambda (f) (lambda (x) (not (f x)))))");
+    eval_str("(define compose (lambda (f g) (lambda (x) (f (g x)))))");
+
+    /* Predicate combinators */
+    eval_str("(define every? (lambda (p lst) (if (null? lst) t (if (p (car lst)) (every? p (cdr lst)) nil))))");
+    eval_str("(define some (lambda (p lst) (if (null? lst) nil (if (p (car lst)) (car lst) (some p (cdr lst))))))");
+    eval_str("(define none? (lambda (p lst) (every? (complement p) lst)))");
+
+    /* List construction */
+    eval_str("(define range-helper (lambda (i n) (if (= i n) nil (cons i (range-helper (+ i 1) n)))))");
+    eval_str("(define range (lambda (n) (range-helper 0 n)))");
+    eval_str("(define repeat (lambda (n x) (if (= n 0) nil (cons x (repeat (- n 1) x)))))");
+    eval_str("(define take (lambda (n lst) (if (= n 0) nil (if (null? lst) nil (cons (car lst) (take (- n 1) (cdr lst)))))))");
+    eval_str("(define drop (lambda (n lst) (if (= n 0) lst (if (null? lst) nil (drop (- n 1) (cdr lst))))))");
+    eval_str("(define zip (lambda (a b) (if (null? a) nil (if (null? b) nil (cons (list (car a) (car b)) (zip (cdr a) (cdr b)))))))");
+    eval_str("(define flatten (lambda (lst) (if (null? lst) nil (if (pair? (car lst)) (append (flatten (car lst)) (flatten (cdr lst))) (cons (car lst) (flatten (cdr lst)))))))");
+
+    /* Association lists */
+    eval_str("(define assoc (lambda (key alist) (if (null? alist) nil (if (eq? key (caar alist)) (car alist) (assoc key (cdr alist))))))");
+    eval_str("(define get (lambda (key alist default) (if (null? alist) default (if (eq? key (caar alist)) (cdar alist) (get key (cdr alist) default)))))");
 
     /* COR24-TB I/O addresses */
     eval_str("(define IO-LED #xFF0000)");
