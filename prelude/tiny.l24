@@ -1,0 +1,2 @@
+;; tiny.l24 -- Minimal prelude (primitives only, no definitions)
+;; Just the bare C primitives. Use for maximum heap/stack headroom.

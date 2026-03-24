@@ -1,35 +1,42 @@
-# Known Bugs
+# Known Bugs and Limitations
 
-## GC collects live objects during eval (root cause of multiple symptoms)
+## Fixed
 
-**Status:** Open. Partially mitigated by gc_protect in eval_list, read_list, begin handler, and REPL.
+### Dotted-pair reader bug (fixed in step 4)
+`read_list` wasn't consuming `)` for first-element dotted pairs. `(lambda (a . rs) body)` was parsed as `(lambda (a . rs))` — body silently dropped. Root cause of "variadic params don't work" reports.
 
-**Root cause:** The mark-sweep GC only marks from `global_env` and the explicit `gc_roots[]` stack. Local C variables (function arguments, loop temporaries) are NOT scanned. When GC triggers during eval — via cons allocation in eval_list, read_list, or string creation — values held only in C locals can be collected.
+### GC collecting live objects (fixed: conservative stack scanning)
+Mark-sweep GC now scans the COR24 EBR stack for tagged heap pointers. Also made `gc_mark_val` iterative on cdr to prevent stack overflow during marking of large global_env.
 
-**Symptoms:**
-1. **String literals return wrong length:** `(string-length "hello")` returns 0 when the string is inline (GC collects the string's heap cell during eval_list). Works correctly when the string is bound to a variable in global_env.
-2. **Bottles demo stops after ~3 verses:** The local `env` binding (e.g., n=3) is collected during display/string operations within begin, causing subsequent iterations to fail silently.
-3. **Buffer size sensitivity:** Changing `char buf[128]` to `char buf[32]` in read_string appeared to fix strings, but actually just shifted GC timing. The bug was NOT a tc24r compiler issue — a standalone reproducer with the same call depth works correctly.
+### REPL single-line limit (fixed: paren-depth tracking)
+`read_line` now tracks `(` / `)` depth and continues reading across newlines. Buffer is 1024 bytes.
 
-**Proper fix:** Conservative GC that scans the C stack for potential heap pointers. The COR24 EBR stack region is known (0xFEE000–0xFEFFFF), and tagged heap pointers are identifiable by their low 2 bits. Scanning the stack from SP to the initial SP and treating any word that looks like a valid tagged pointer as a root would prevent collection of live objects without requiring manual gc_protect calls.
+### String literal limit (fixed: raised to 119 chars)
+Original 32-byte buffer was a workaround for the dotted-pair reader bug, not a tc24r compiler issue.
 
-**Current mitigations:**
-- `gc_protect(expr)` / `gc_protect(result)` in the REPL
-- `gc_protect(val)` / `gc_protect(rest)` in eval_list
-- `gc_protect(first)` / `gc_protect(head)` / `gc_protect(elem)` in read_list
-- `gc_protect(env)` in begin handler
-- String literals limited to 31 chars (buf[32]) as an accidental mitigation
+## Open
 
-**Workaround:** Bind values to variables via `define` before passing them to functions. This places them in `global_env` where GC can find them.
+### Symbol `t` cannot be used as a variable name
+`eval` checks `expr == T_VAL` before environment lookup, so `t` always evaluates to itself regardless of bindings. Common CL behavior but a trap for new users. Workaround: don't name variables `t`.
 
-## REPL single-line input limit
+### String pool is append-only
+`str_pool` (2048 bytes) grows monotonically. String data is never reclaimed even when the heap cell is GC'd. Long-running programs that create many strings will exhaust the pool. Fix: either compact the pool during GC or allocate strings in heap cells.
 
-**Status:** Open.
+### `or` macro evaluates first argument twice
+`(or a b)` expands to `(if a a b)` — `a` is evaluated twice. If `a` has side effects, this is wrong. Fix: needs `gensym` or expand to `(let ((tmp a)) (if tmp tmp b))`.
 
-`read_line` uses a 256-byte buffer. Expressions must fit on one line. Multi-line input would require paren-counting to detect incomplete expressions and continue reading.
+### `and`/`or` are two-argument only
+Clojure's `and`/`or` are variadic. Ours only take two args. Nest for more: `(and a (and b c))`.
 
-## String literal length limit
+## Limitations (by design)
 
-**Status:** 31 characters (buf[32] in read_string).
-
-Can be increased once the GC root scanning issue is properly fixed (conservative GC). The buffer size is not the real constraint — it was reduced as an accidental mitigation for the GC bug above.
+| Limit | Value | Notes |
+|-------|-------|-------|
+| Heap cells | 4096 | Mark-sweep GC reclaims unused cells |
+| String pool | 2048 bytes | Append-only, not reclaimed |
+| String literal | 119 characters | Reader buffer limit |
+| REPL line | 1024 characters | With paren-depth continuation |
+| GC root stack | 256 entries | Mostly unused with conservative GC |
+| Symbol table | 256 symbols / 2048 bytes | Interned, never freed |
+| Stack (EBR) | 3–8 KB | `--stack-kilobytes` flag in cor24-run |
+| Fixnum range | -2,097,152 to 2,097,151 | 22-bit signed (24-bit word, 2-bit tag) |

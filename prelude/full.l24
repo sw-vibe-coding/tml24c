@@ -1,0 +1,52 @@
+;; full.l24 -- Full prelude (includes standard + extras)
+;; Requires --stack-kilobytes 8 for deep call chains.
+
+;; Threading macros
+(defmacro -> (x form) (cons (car form) (cons x (cdr form))))
+(defmacro ->> (x form) (append form (list x)))
+
+;; List construction
+(define range-helper (lambda (i n) (if (= i n) nil (cons i (range-helper (+ i 1) n)))))
+(define range (lambda (n) (range-helper 0 n)))
+(define repeat (lambda (n x) (if (= n 0) nil (cons x (repeat (- n 1) x)))))
+(define take (lambda (n lst) (if (= n 0) nil (if (null? lst) nil (cons (car lst) (take (- n 1) (cdr lst)))))))
+(define drop (lambda (n lst) (if (= n 0) lst (if (null? lst) nil (drop (- n 1) (cdr lst))))))
+(define zip (lambda (a b) (if (null? a) nil (if (null? b) nil (cons (list (car a) (car b)) (zip (cdr a) (cdr b)))))))
+(define flatten (lambda (lst) (if (null? lst) nil (if (pair? (car lst)) (append (flatten (car lst)) (flatten (cdr lst))) (cons (car lst) (flatten (cdr lst)))))))
+
+;; Predicate combinators
+(define constantly (lambda (x) (lambda (y) x)))
+(define every? (lambda (p lst) (if (null? lst) t (if (p (car lst)) (every? p (cdr lst)) nil))))
+(define some (lambda (p lst) (if (null? lst) nil (if (p (car lst)) (car lst) (some p (cdr lst))))))
+(define none? (lambda (p lst) (every? (complement p) lst)))
+
+;; Utility functions
+(define partial (lambda (f . args) (lambda rest (apply f (append args rest)))))
+(define juxt (lambda (f g) (lambda (x) (list (f x) (g x)))))
+(defmacro doseq (binding body) `(for-each (lambda (,(car binding)) ,body) ,(cadr binding)))
+(defmacro dotimes (binding body) `(for-each (lambda (,(car binding)) ,body) (range ,(cadr binding))))
+
+;; Trampoline
+(define trampoline (lambda (f) (let ((r (f))) (if (fn? r) (trampoline r) r))))
+
+;; Lazy sequences
+(define lazy-cons (lambda (h thk) (cons h (cons 'thunk thk))))
+(define lazy? (lambda (s) (and (pair? s) (and (pair? (cdr s)) (eq? (car (cdr s)) 'thunk)))))
+(define lazy-car car)
+(define lazy-cdr (lambda (s) (if (lazy? s) (let ((v ((cdr (cdr s))))) (begin (set! s (cons (car s) v)) v)) (cdr s))))
+(define lazy-take (lambda (n s) (if (= n 0) nil (if (null? s) nil (cons (lazy-car s) (lazy-take (- n 1) (lazy-cdr s)))))))
+(define lazy-map (lambda (f s) (if (null? s) nil (lazy-cons (f (lazy-car s)) (lambda () (lazy-map f (lazy-cdr s)))))))
+(define lazy-filter (lambda (p s) (if (null? s) nil (if (p (lazy-car s)) (lazy-cons (lazy-car s) (lambda () (lazy-filter p (lazy-cdr s)))) (lazy-filter p (lazy-cdr s))))))
+(define iterate (lambda (f x) (lazy-cons x (lambda () (iterate f (f x))))))
+(define lazy-range (lambda (n) (iterate (lambda (x) (+ x 1)) n)))
+(define take-while (lambda (p lst) (if (null? lst) nil (if (p (car lst)) (cons (car lst) (take-while p (cdr lst))) nil))))
+(define drop-while (lambda (p lst) (if (null? lst) nil (if (p (car lst)) (drop-while p (cdr lst)) lst))))
+
+;; Anaphoric macros
+(defmacro aif (test then else) `(let ((it ,test)) (if it ,then ,else)))
+(defmacro awhen (test body) `(let ((it ,test)) (if it ,body nil)))
+(defmacro aand (a b) `(let ((it ,a)) (if it ,b nil)))
+
+;; Boolean aliases
+(define true t)
+(define false nil)

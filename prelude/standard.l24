@@ -1,0 +1,67 @@
+;; standard.l24 -- Standard prelude
+;; Core Lisp functions. Works with --stack-kilobytes 3 (default).
+
+;; List operations
+(define map (lambda (f lst) (if (null? lst) lst (cons (f (car lst)) (map f (cdr lst))))))
+(define filter (lambda (p lst) (if (null? lst) lst (if (p (car lst)) (cons (car lst) (filter p (cdr lst))) (filter p (cdr lst))))))
+(define reduce (lambda (f init lst) (if (null? lst) init (reduce f (f init (car lst)) (cdr lst)))))
+(define foldr (lambda (f init lst) (if (null? lst) init (f (car lst) (foldr f init (cdr lst))))))
+(define length (lambda (lst) (if (null? lst) 0 (+ 1 (length (cdr lst))))))
+(define append (lambda (a b) (if (null? a) b (cons (car a) (append (cdr a) b)))))
+(define reverse (lambda (lst) (reduce (lambda (acc x) (cons x acc)) nil lst)))
+(define nth (lambda (n lst) (if (= n 0) (car lst) (nth (- n 1) (cdr lst)))))
+
+;; List accessors
+(define cadr (lambda (x) (car (cdr x))))
+(define caddr (lambda (x) (car (cdr (cdr x)))))
+(define caar (lambda (x) (car (car x))))
+(define cdar (lambda (x) (cdr (car x))))
+
+;; Macros
+(defmacro when (cond body) `(if ,cond ,body nil))
+(defmacro unless (cond body) `(if ,cond nil ,body))
+(defmacro let (bindings body) `((lambda ,(map car bindings) ,body) ,@(map cadr bindings)))
+(defmacro and (a b) `(if ,a ,b nil))
+(defmacro or (a b) `(if ,a ,a ,b))
+(define cond-expand (lambda (clauses) (if (null? clauses) nil (if (eq? (caar clauses) 't) (cadr (car clauses)) `(if ,(caar clauses) ,(cadr (car clauses)) ,(cond-expand (cdr clauses)))))))
+(defmacro cond clauses (cond-expand clauses))
+
+;; Comparison
+(define > (lambda (a b) (< b a)))
+(define >= (lambda (a b) (not (< a b))))
+(define <= (lambda (a b) (not (< b a))))
+
+;; Numeric
+(define zero? (lambda (n) (= n 0)))
+(define positive? (lambda (n) (< 0 n)))
+(define negative? (lambda (n) (< n 0)))
+(define abs (lambda (n) (if (< n 0) (- 0 n) n)))
+(define min (lambda (a b) (if (< a b) a b)))
+(define max (lambda (a b) (if (< a b) b a)))
+
+;; Function combinators
+(define identity (lambda (x) x))
+(define complement (lambda (f) (lambda (x) (not (f x)))))
+(define compose (lambda (f g) (lambda (x) (f (g x)))))
+
+;; String utilities
+(define ->str (lambda (x) (cond ((string? x) x) ((number? x) (number->string x)) (t ""))))
+(define str2 (lambda (a b) (string-append (->str a) (->str b))))
+(define str (lambda args (reduce str2 "" args)))
+
+;; Iteration
+(define for-each (lambda (f lst) (if (null? lst) nil (begin (f (car lst)) (for-each f (cdr lst))))))
+
+;; Association lists
+(define assoc (lambda (key alist) (if (null? alist) nil (if (eq? key (caar alist)) (car alist) (assoc key (cdr alist))))))
+(define get (lambda (key alist default) (if (null? alist) default (if (eq? key (caar alist)) (cdar alist) (get key (cdr alist) default)))))
+
+;; I/O
+(define IO-LED #xFF0000)
+(define IO-SWITCH #xFF0000)
+(define IO-UART-DATA #xFF0100)
+(define IO-UART-STATUS #xFF0101)
+(define IO-INT-ENABLE #xFF0010)
+(define set-leds (lambda (n) (poke IO-LED n)))
+(define get-leds (lambda () (peek IO-LED)))
+(define s2-pressed? (lambda () (= (% (peek IO-SWITCH) 2) 0)))
