@@ -1,0 +1,39 @@
+;; mutation.l24 -- set!, atoms, and memoization
+;;
+;; Run with: just eval demos/mutation.l24
+
+;; Basic set!
+(define x 0)
+(set! x 42)
+(println x)
+
+;; Counter with closure
+(define counter 0)
+(define inc! (lambda () (begin (set! counter (+ counter 1)) counter)))
+(inc!)
+(inc!)
+(inc!)
+(println counter)
+
+;; Atom: mutable cell (Clojure-style)
+(define make-atom (lambda (v) (list v)))
+(define deref (lambda (a) (car a)))
+(define swap! (lambda (a f) (let ((new (f (deref a)))) (begin (set! a (list new)) new))))
+(define reset! (lambda (a v) (begin (set! a (list v)) v)))
+
+;; Memoize: cache function results in an alist
+(define make-memo (lambda (f) (let ((cache nil)) (lambda (x) (let ((hit (assoc x cache))) (if hit (cdr hit) (let ((result (f x))) (begin (set! cache (cons (cons x result) cache)) result))))))))
+
+;; Memoized fibonacci
+(define fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))
+(define fib-memo (make-memo fib))
+(println (fib-memo 10))
+
+;; Accumulator factory
+(define make-acc (lambda (init) (let ((total init)) (lambda (n) (begin (set! total (+ total n)) total)))))
+(define acc (make-acc 0))
+(acc 10)
+(acc 20)
+(println (acc 5))
+
+(exit)

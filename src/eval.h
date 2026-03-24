@@ -24,6 +24,7 @@ int sym_begin;
 int sym_quasiquote;
 int sym_unquote;
 int sym_unquote_splicing;
+int sym_set;
 /* Primitive IDs */
 #define PRIM_ADD     0
 #define PRIM_SUB     1
@@ -415,6 +416,36 @@ int eval(int expr, int env) {
         return val;
     }
 
+    /* set! — mutate existing binding */
+    if (head == sym_set) {
+        int sym = car(args);
+        int val = eval(car(cdr(args)), env);
+        /* Search local env first */
+        int e = env;
+        while (!IS_NIL(e)) {
+            int binding = car(e);
+            if (car(binding) == sym) {
+                heap_cdr[PTR_IDX(binding)] = val;
+                return val;
+            }
+            e = cdr(e);
+        }
+        /* Then global env */
+        e = global_env;
+        while (!IS_NIL(e)) {
+            int binding = car(e);
+            if (car(binding) == sym) {
+                heap_cdr[PTR_IDX(binding)] = val;
+                return val;
+            }
+            e = cdr(e);
+        }
+        puts_str("ERR:set!-unbound ");
+        print_val(sym);
+        putc_uart(10);
+        return NIL_VAL;
+    }
+
     /* lambda */
     if (head == sym_lambda) {
         int params = car(args);
@@ -513,6 +544,7 @@ void eval_init() {
     sym_quasiquote = intern("quasiquote");
     sym_unquote = intern("unquote");
     sym_unquote_splicing = intern("unquote-splicing");
+    sym_set = intern("set!");
 
     register_prim("+", PRIM_ADD);
     register_prim("-", PRIM_SUB);
