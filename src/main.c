@@ -256,6 +256,10 @@ void test_eval() {
     /* guard — multiple clauses, second matches */
     test_eval_one("(guard (e ((eq? e 'a) 1) ((eq? e 'b) 2)) (raise 'b))", "2");
 
+    /* eval_list — iterative, handles many args */
+    test_eval_one("(list 1 2 3 4 5 6 7 8)", "(1 2 3 4 5 6 7 8)");
+    test_eval_one("(+ (+ 1 2) (+ 3 4))", "10");
+
     /* Multi-body lambda */
     test_eval_one("((lambda (x) (+ x 1) (* x 2)) 5)", "10");
     eval(read_str("(define side-log nil)"), NIL_VAL);

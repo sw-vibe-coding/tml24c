@@ -180,11 +180,24 @@ int env_bind(int params, int args, int env) {
 
 int eval_list(int list, int env) {
     if (IS_NIL(list)) return NIL_VAL;
+    /* Iterative: build result list in-place to avoid C stack depth
+     * proportional to argument count */
     int val = eval(car(list), env);
     if (catch_throwing) return NIL_VAL;
-    int rest = eval_list(cdr(list), env);
-    if (catch_throwing) return NIL_VAL;
-    return cons(val, rest);
+    int result = cons(val, NIL_VAL);
+    gc_protect(result);
+    int tail = result;
+    list = cdr(list);
+    while (IS_CONS(list)) {
+        val = eval(car(list), env);
+        if (catch_throwing) { gc_unprotect(1); return NIL_VAL; }
+        int cell = cons(val, NIL_VAL);
+        heap_cdr[PTR_IDX(tail)] = cell;
+        tail = cell;
+        list = cdr(list);
+    }
+    gc_unprotect(1);
+    return result;
 }
 
 int apply_primitive(int id, int args) {
