@@ -38,15 +38,15 @@ void load_prelude() {
     eval_str("(define remainder %)");
 
     /* Scheme macros */
-    eval_str("(defmacro let (bindings body) `((lambda ,(map car bindings) ,body) ,@(map cadr bindings)))");
+    eval_str("(defmacro let (bindings . body) `((lambda ,(map car bindings) ,@body) ,@(map cadr bindings)))");
     eval_str("(define let*-expand (lambda (bindings body) (if (null? (cdr bindings)) `(let (,(car bindings)) ,body) `(let (,(car bindings)) ,(let*-expand (cdr bindings) body)))))");
     eval_str("(defmacro let* (bindings body) (let*-expand bindings body))");
     eval_str("(define cond-expand (lambda (clauses) (if (null? clauses) nil (if (eq? (caar clauses) 'else) (cadr (car clauses)) `(if ,(caar clauses) ,(cadr (car clauses)) ,(cond-expand (cdr clauses)))))))");
     eval_str("(defmacro cond clauses (cond-expand clauses))");
     eval_str("(defmacro and (a b) `(if ,a ,b nil))");
     eval_str("(defmacro or (a b) `(if ,a ,a ,b))");
-    eval_str("(defmacro when (test body) `(if ,test ,body (begin)))");
-    eval_str("(defmacro unless (test body) `(if ,test (begin) ,body))");
+    eval_str("(defmacro when (test . body) `(if ,test (begin ,@body) nil))");
+    eval_str("(defmacro unless (test . body) `(if ,test nil (begin ,@body)))");
 
     /* define-fn: (define-fn (f x) body) shorthand */
     eval_str("(defmacro define-fn (sig body) `(define ,(car sig) (lambda ,(cdr sig) ,body)))");

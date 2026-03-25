@@ -256,6 +256,21 @@ void test_eval() {
     /* guard — multiple clauses, second matches */
     test_eval_one("(guard (e ((eq? e 'a) 1) ((eq? e 'b) 2)) (raise 'b))", "2");
 
+    /* Multi-body let */
+    test_eval_one("(let ((x 1)) (+ x 1) (* x 10))", "10");
+    eval(read_str("(define mb-log nil)"), NIL_VAL);
+    eval(read_str("(let ((x 5)) (set! mb-log x) (* x 2))"), NIL_VAL);
+    test_eval_one("mb-log", "5");
+
+    /* Multi-body when/unless */
+    eval(read_str("(set! mb-log nil)"), NIL_VAL);
+    eval(read_str("(when t (set! mb-log 'ran) 42)"), NIL_VAL);
+    test_eval_one("mb-log", "ran");
+    test_eval_one("(when nil 1 2 3)", "nil");
+    eval(read_str("(set! mb-log nil)"), NIL_VAL);
+    eval(read_str("(unless nil (set! mb-log 'ran) 99)"), NIL_VAL);
+    test_eval_one("mb-log", "ran");
+
     /* with-restart / invoke-restart */
     test_eval_one("(with-restart 'use-value (lambda (v) v) (lambda () 42))", "42");
     test_eval_one("(with-handler (lambda (e) (invoke-restart 'use-value 99)) (lambda () (with-restart 'use-value (lambda (v) v) (lambda () (raise 'oops)))))", "99");
@@ -390,11 +405,11 @@ void load_prelude() {
     eval_str("(define nth (lambda (n lst) (if (= n 0) (car lst) (nth (- n 1) (cdr lst)))))");
 
     /* Convenience macros */
-    eval_str("(defmacro when (cond body) `(if ,cond ,body nil))");
-    eval_str("(defmacro unless (cond body) `(if ,cond nil ,body))");
+    eval_str("(defmacro when (cond . body) `(if ,cond (begin ,@body) nil))");
+    eval_str("(defmacro unless (cond . body) `(if ,cond nil (begin ,@body)))");
 
     /* let: (let ((x 1) (y 2)) body) => ((lambda (x y) body) 1 2) */
-    eval_str("(defmacro let (bindings body) `((lambda ,(map car bindings) ,body) ,@(map cadr bindings)))");
+    eval_str("(defmacro let (bindings . body) `((lambda ,(map car bindings) ,@body) ,@(map cadr bindings)))");
 
     /* and/or (two-arg, short-circuit via if) */
     eval_str("(defmacro and (a b) `(if ,a ,b nil))");

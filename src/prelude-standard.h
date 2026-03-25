@@ -15,9 +15,9 @@ void load_prelude() {
     eval_str("(define nth (lambda (n lst) (if (= n 0) (car lst) (nth (- n 1) (cdr lst)))))");
 
     /* Macros */
-    eval_str("(defmacro when (cond body) `(if ,cond ,body nil))");
-    eval_str("(defmacro unless (cond body) `(if ,cond nil ,body))");
-    eval_str("(defmacro let (bindings body) `((lambda ,(map car bindings) ,body) ,@(map cadr bindings)))");
+    eval_str("(defmacro when (cond . body) `(if ,cond (begin ,@body) nil))");
+    eval_str("(defmacro unless (cond . body) `(if ,cond nil (begin ,@body)))");
+    eval_str("(defmacro let (bindings . body) `((lambda ,(map car bindings) ,@body) ,@(map cadr bindings)))");
     eval_str("(defmacro and (a b) `(if ,a ,b nil))");
     eval_str("(defmacro or (a b) `(if ,a ,a ,b))");
     eval_str("(define cond-expand (lambda (clauses) (if (null? clauses) nil (if (eq? (caar clauses) 't) (cadr (car clauses)) `(if ,(caar clauses) ,(cadr (car clauses)) ,(cond-expand (cdr clauses)))))))");
