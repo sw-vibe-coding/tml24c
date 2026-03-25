@@ -141,6 +141,19 @@ void gc_collect() {
         i = i + 1;
     }
 
+    /* Mark dynamic-wind after thunks and catch values */
+    i = 0;
+    while (i < wind_depth) {
+        gc_mark_val(wind_after[i]);
+        i = i + 1;
+    }
+    i = 0;
+    while (i < catch_depth) {
+        gc_mark_val(catch_tags[i]);
+        gc_mark_val(catch_vals[i]);
+        i = i + 1;
+    }
+
     /* Conservative: scan C stack for heap pointers */
     gc_scan_stack();
 

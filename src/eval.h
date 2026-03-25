@@ -31,12 +31,17 @@ int gensym_counter;
 /* --- Escape continuation support (catch/throw) --- */
 
 #define MAX_CATCH_DEPTH 16
+#define MAX_WIND_DEPTH  16
 
 int catch_tags[MAX_CATCH_DEPTH];   /* tag symbol for each catch frame */
 int catch_vals[MAX_CATCH_DEPTH];   /* return value (filled by throw) */
 int catch_depth;                   /* current stack depth */
 int catch_throwing;                /* flag: unwinding in progress? */
 int catch_target;                  /* depth to unwind to */
+
+/* Wind stack for dynamic-wind: after-thunks to run during unwind */
+int wind_after[MAX_WIND_DEPTH];    /* after thunk (closure) for each wind frame */
+int wind_depth;                    /* current wind stack depth */
 /* Primitive IDs */
 #define PRIM_ADD     0
 #define PRIM_SUB     1
@@ -80,6 +85,7 @@ int catch_target;                  /* depth to unwind to */
 #define PRIM_SYM_TO_STR 39
 #define PRIM_STR_TO_SYM 40
 #define PRIM_THROW      41
+#define PRIM_DYN_WIND   42
 
 /* --- Extended object accessors --- */
 
@@ -402,6 +408,12 @@ int apply_primitive(int id, int args) {
         int i = catch_depth - 1;
         while (i >= 0) {
             if (catch_tags[i] == tag) {
+                /* Run dynamic-wind after thunks before unwinding */
+                while (wind_depth > 0) {
+                    int after = wind_after[wind_depth - 1];
+                    wind_depth = wind_depth - 1;
+                    apply_fn(after, NIL_VAL);
+                }
                 catch_throwing = 1;
                 catch_target = i;
                 catch_vals[i] = val;
@@ -413,6 +425,29 @@ int apply_primitive(int id, int args) {
         print_val(tag);
         putc_uart(10);
         return NIL_VAL;
+    }
+    if (id == PRIM_DYN_WIND) {
+        /* (dynamic-wind before thunk after) */
+        int before = a;
+        int thunk = b;
+        int after = car(cdr(cdr(args)));
+        /* Call before */
+        apply_fn(before, NIL_VAL);
+        /* Push after thunk onto wind stack */
+        if (wind_depth >= MAX_WIND_DEPTH) {
+            puts_str("ERR:wind-overflow\n");
+            return NIL_VAL;
+        }
+        wind_after[wind_depth] = after;
+        wind_depth = wind_depth + 1;
+        /* Call thunk */
+        int result = apply_fn(thunk, NIL_VAL);
+        /* Pop wind stack and call after (normal exit) */
+        wind_depth = wind_depth - 1;
+        if (!catch_throwing) {
+            apply_fn(after, NIL_VAL);
+        }
+        return result;
     }
     if (id == PRIM_NUM_TO_STR) {
         int n = FIXNUM_VAL(a);
@@ -711,6 +746,7 @@ void eval_init() {
     /* Initialize catch/throw state */
     catch_depth = 0;
     catch_throwing = 0;
+    wind_depth = 0;
 
     register_prim("+", PRIM_ADD);
     register_prim("-", PRIM_SUB);
@@ -754,5 +790,6 @@ void eval_init() {
     register_prim("symbol->string", PRIM_SYM_TO_STR);
     register_prim("string->symbol", PRIM_STR_TO_SYM);
     register_prim("throw", PRIM_THROW);
+    register_prim("dynamic-wind", PRIM_DYN_WIND);
     gensym_counter = 0;
 }

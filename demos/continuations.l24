@@ -124,5 +124,29 @@
     ((eq? e 'div-by-zero) -1))
   (safe-div 20 4)))
 
+;; === Part 6: dynamic-wind — guaranteed cleanup ===
+
+(display "--- dynamic-wind ---")
+(newline)
+
+;; Normal exit: before, body, after all run
+(define dw-trace nil)
+(dynamic-wind
+  (lambda () (set! dw-trace (cons 'enter dw-trace)))
+  (lambda () (set! dw-trace (cons 'body dw-trace)))
+  (lambda () (set! dw-trace (cons 'exit dw-trace))))
+(display "normal: ")
+(println dw-trace)
+
+;; Non-local exit: after still runs
+(set! dw-trace nil)
+(catch 'abort
+  (dynamic-wind
+    (lambda () (set! dw-trace (cons 'enter dw-trace)))
+    (lambda () (throw 'abort 'bailed))
+    (lambda () (set! dw-trace (cons 'cleanup dw-trace)))))
+(display "thrown: ")
+(println dw-trace)
+
 (display "--- done ---")
 (newline)

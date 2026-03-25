@@ -224,6 +224,16 @@ void test_eval() {
     test_eval_one("(with-handler (lambda (e) -1) (lambda () (safe-div 10 2)))", "5");
     test_eval_one("(with-handler (lambda (e) -1) (lambda () (safe-div 10 0)))", "-1");
 
+    /* dynamic-wind — after runs on normal exit */
+    eval(read_str("(define dw-log nil)"), NIL_VAL);
+    eval(read_str("(dynamic-wind (lambda () (set! dw-log (cons 'before dw-log))) (lambda () (set! dw-log (cons 'during dw-log))) (lambda () (set! dw-log (cons 'after dw-log))))"), NIL_VAL);
+    test_eval_one("dw-log", "(after during before)");
+
+    /* dynamic-wind — after runs on throw */
+    eval(read_str("(set! dw-log nil)"), NIL_VAL);
+    eval(read_str("(catch 'bail (dynamic-wind (lambda () (set! dw-log (cons 'before dw-log))) (lambda () (throw 'bail 0)) (lambda () (set! dw-log (cons 'after dw-log)))))"), NIL_VAL);
+    test_eval_one("dw-log", "(after before)");
+
     /* guard — basic clause matching */
     test_eval_one("(guard (e ((eq? e 'div-by-zero) 0)) (safe-div 10 0))", "0");
 
