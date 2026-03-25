@@ -91,5 +91,24 @@
 (display "trace: ")
 (println named-log)
 
+;; === do loop — R7RS iteration ===
+
+(display "--- do loop ---")
+(newline)
+
+;; Count to 5
+(display "count: ")
+(println (do ((i 0 (+ i 1))) ((= i 5) i)))
+
+;; Sum 1..10 with two variables
+(display "sum 1..10: ")
+(println (do ((i 1 (+ i 1)) (s 0 (+ s i))) ((= i 11) s)))
+
+;; do with body (side effects)
+(define do-log nil)
+(do ((i 0 (+ i 1))) ((= i 3) nil) (set! do-log (cons i do-log)))
+(display "do trace: ")
+(println do-log)
+
 (display "--- done ---")
 (newline)

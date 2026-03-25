@@ -262,6 +262,10 @@ void test_eval() {
     eval(read_str("(let ((x 5)) (set! mb-log x) (* x 2))"), NIL_VAL);
     test_eval_one("mb-log", "5");
 
+    /* do loop */
+    test_eval_one("(do ((i 0 (+ i 1))) ((= i 5) i))", "5");
+    test_eval_one("(do ((i 1 (+ i 1)) (s 0 (+ s i))) ((= i 11) s))", "55");
+
     /* Named let — iteration */
     test_eval_one("(let loop ((i 0)) (if (< i 5) (loop (+ i 1)) i))", "5");
     test_eval_one("(let sum ((n 10) (acc 0)) (if (= n 0) acc (sum (- n 1) (+ acc n))))", "55");
@@ -417,6 +421,12 @@ void load_prelude() {
     eval_str("(defmacro let (first . rest) (let-expand first rest))");
 
     /* and/or (two-arg, short-circuit via if) */
+    /* do: (do ((var init step) ...) (test result) body...) */
+    /* do: (do ((var init step) ...) (test result) body...) — uses named let */
+    eval_str("(define (do-expand args) `(let _do_ ,(map (lambda (c) (list (car c) (cadr c))) (car args)) (if ,(car (cadr args)) ,(if (null? (cdr (cadr args))) nil (cadr (cadr args))) (begin ,@(cdr (cdr args)) (_do_ ,@(map caddr (car args)))))))");
+    eval_str("(defmacro do rest (do-expand rest))");
+
+
     eval_str("(defmacro and (a b) `(if ,a ,b nil))");
     eval_str("(defmacro or (a b) `(if ,a ,a ,b))");
 
