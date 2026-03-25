@@ -256,6 +256,17 @@ void test_eval() {
     /* guard — multiple clauses, second matches */
     test_eval_one("(guard (e ((eq? e 'a) 1) ((eq? e 'b) 2)) (raise 'b))", "2");
 
+    /* Multi-body lambda */
+    test_eval_one("((lambda (x) (+ x 1) (* x 2)) 5)", "10");
+    eval(read_str("(define side-log nil)"), NIL_VAL);
+    eval(read_str("((lambda () (set! side-log 'ran) 42))"), NIL_VAL);
+    test_eval_one("side-log", "ran");
+
+    /* Multi-body define shorthand */
+    eval(read_str("(define (multi-test x) (set! side-log x) (* x 3))"), NIL_VAL);
+    test_eval_one("(multi-test 7)", "21");
+    test_eval_one("side-log", "7");
+
     /* fn? — callable type predicate */
     test_eval_one("(fn? +)", "t");
     test_eval_one("(fn? double)", "t");

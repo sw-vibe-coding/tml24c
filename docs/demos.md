@@ -16,6 +16,7 @@ All demos are in the `demos/` directory. Run with `just eval demos/<name>.l24` o
 | `threading.l24` | `->`, `->>` | `just eval demos/threading.l24` | Thread-first/last pipelines, data transformation |
 | `lazy.l24` | Lazy sequences | `just eval demos/lazy.l24` | Infinite naturals, powers of 2, lazy map/filter, lazy fibonacci |
 | `utilities.l24` | partial, juxt, doseq, dotimes | `just eval demos/utilities.l24` | Curried functions, multi-result, iteration macros |
+| `multibody.l24` | Multi-body lambda/define/defmacro | `just eval demos/multibody.l24` | Implicit begin in lambda, cleaner handlers, side-effect forms |
 | `multiline.l24` | Multi-line input | `just eval demos/multiline.l24` | Multi-line function definitions with paren-depth tracking |
 | `metaprogramming.l24` | eval, macroexpand, gensym | `just eval demos/metaprogramming.l24` | Runtime eval, macro introspection, hygienic gensym |
 | `continuations.l24` | catch/throw, call/ec, raise, guard, dynamic-wind, unwind-protect | `just demo-continuations` | Non-local exit, escape continuations, error handling, guaranteed cleanup |

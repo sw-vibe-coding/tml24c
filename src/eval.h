@@ -565,14 +565,20 @@ int eval(int expr, int env) {
         continue;
     }
 
-    /* define — supports (define x val) and (define (f params...) body) */
+    /* define — supports (define x val) and (define (f params...) body...) */
     if (head == sym_define) {
         int first = car(args);
         if (IS_CONS(first)) {
-            /* (define (f x y) body) => (define f (lambda (x y) body)) */
+            /* (define (f x y) body...) => (define f (lambda (x y) body...)) */
             int sym = car(first);
             int params = cdr(first);
-            int body = car(cdr(args));
+            int body_forms = cdr(args);
+            int body;
+            if (IS_NIL(cdr(body_forms))) {
+                body = car(body_forms);
+            } else {
+                body = cons(sym_begin, body_forms);
+            }
             int val = make_closure(params, body, env);
             global_env = env_extend(sym, val, global_env);
             return val;
@@ -614,18 +620,30 @@ int eval(int expr, int env) {
         return NIL_VAL;
     }
 
-    /* lambda */
+    /* lambda — supports multiple body forms via implicit begin */
     if (head == sym_lambda) {
         int params = car(args);
-        int body = car(cdr(args));
+        int body_forms = cdr(args);
+        int body;
+        if (IS_NIL(cdr(body_forms))) {
+            body = car(body_forms);  /* single body */
+        } else {
+            body = cons(sym_begin, body_forms);  /* wrap in begin */
+        }
         return make_closure(params, body, env);
     }
 
-    /* defmacro: (defmacro name (params) body) */
+    /* defmacro: (defmacro name (params) body...) — supports multi-body */
     if (head == sym_defmacro) {
         int name = car(args);
         int mparams = car(cdr(args));
-        int mbody = car(cdr(cdr(args)));
+        int mbody_forms = cdr(cdr(args));
+        int mbody;
+        if (IS_NIL(cdr(mbody_forms))) {
+            mbody = car(mbody_forms);
+        } else {
+            mbody = cons(sym_begin, mbody_forms);
+        }
         int mac = make_macro(mparams, mbody, env);
         global_env = env_extend(name, mac, global_env);
         return mac;

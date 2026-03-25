@@ -1,0 +1,76 @@
+;; multibody.l24 — Multi-body lambda, define, and defmacro
+;; Run with: just eval demos/multibody.l24
+
+;; === Multi-body lambda ===
+
+(display "--- multi-body lambda ---")
+(newline)
+
+;; Before: needed (begin ...) for side effects
+;; (lambda (x) (begin (println x) (* x 2)))
+
+;; Now: multiple body forms are implicit begin
+(define (show-and-double x)
+  (display "  input: ")
+  (println x)
+  (* x 2))
+
+(display "result: ")
+(println (show-and-double 21))
+
+;; === Multi-body define ===
+
+(display "--- multi-body define ---")
+(newline)
+
+;; Counter with side effects
+(define counter 0)
+(define (bump)
+  (set! counter (+ counter 1))
+  counter)
+
+(display "bump: ")
+(println (bump))
+(display "bump: ")
+(println (bump))
+(display "bump: ")
+(println (bump))
+
+;; === Multi-body defmacro ===
+
+(display "--- multi-body defmacro ---")
+(newline)
+
+;; Logging macro that prints before evaluating
+(defmacro with-log (label body)
+  (display "  [log] ")
+  (display label)
+  (newline)
+  body)
+
+(display "result: ")
+(println (with-log "computing" (+ 10 20)))
+
+;; === Practical: cleaner error handlers ===
+
+(display "--- practical: cleaner handlers ---")
+(newline)
+
+;; Before: (lambda (e) (begin (display ...) (display ...) -1))
+;; Now: just multiple forms
+(define (safe-divide a b)
+  (with-handler
+    (lambda (e)
+      (display "  error: ")
+      (println e)
+      -1)
+    (lambda ()
+      (if (= b 0) (raise 'div-by-zero) (/ a b)))))
+
+(display "10/3 = ")
+(println (safe-divide 10 3))
+(display "10/0 = ")
+(println (safe-divide 10 0))
+
+(display "--- done ---")
+(newline)
