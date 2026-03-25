@@ -1,0 +1,104 @@
+;; continuations.l24 — Escape continuations and error handling demo
+;; Run with: just eval demos/continuations.l24
+
+;; === Part 1: catch/throw — non-local exit ===
+
+(display "--- catch/throw ---")
+(newline)
+
+;; Basic: throw jumps out of nested computation
+(display "catch basic: ")
+(println (catch 'done (begin (+ 1 2) (throw 'done 42) (+ 3 4))))
+
+;; Nested: throw to outer bypasses inner catch
+(display "nested throw: ")
+(println (catch 'outer
+  (catch 'inner
+    (begin
+      (throw 'outer 'escaped)
+      'never-reached))))
+
+;; === Part 2: call/ec — escape continuations ===
+
+(display "--- call/ec ---")
+(newline)
+
+;; find-first: early return from for-each
+(define (find-first pred lst)
+  (call/ec (lambda (return)
+    (for-each (lambda (x)
+      (if (pred x) (return x) nil))
+      lst)
+    nil)))
+
+(display "find 3 in (1..5): ")
+(println (find-first (lambda (x) (= x 3)) '(1 2 3 4 5)))
+
+(display "find 9 in (1..3): ")
+(println (find-first (lambda (x) (= x 9)) '(1 2 3)))
+
+;; any?: short-circuit predicate test
+(define (any? pred lst)
+  (call/ec (lambda (return)
+    (for-each (lambda (x)
+      (if (pred x) (return t) nil))
+      lst)
+    nil)))
+
+(display "any even in (1 3 4 7): ")
+(println (any? (lambda (x) (= (% x 2) 0)) '(1 3 4 7)))
+
+(display "any even in (1 3 5 7): ")
+(println (any? (lambda (x) (= (% x 2) 0)) '(1 3 5 7)))
+
+;; === Part 3: Error handling ===
+
+(display "--- error handling ---")
+(newline)
+
+;; safe-div: raises on division by zero
+(define (safe-div a b)
+  (if (= b 0)
+    (raise 'div-by-zero)
+    (/ a b)))
+
+(display "10/2 = ")
+(println (with-handler
+  (lambda (e) (begin (display "caught: ") (println e) -1))
+  (lambda () (safe-div 10 2))))
+
+(display "10/0 = ")
+(println (with-handler
+  (lambda (e) (begin (display "caught: ") (println e) -1))
+  (lambda () (safe-div 10 0))))
+
+;; Nested handlers: inner catches first
+(display "nested: ")
+(println (with-handler
+  (lambda (e) 'outer-caught)
+  (lambda ()
+    (with-handler
+      (lambda (e) 'inner-caught)
+      (lambda () (raise 'oops))))))
+
+;; === Part 4: Practical — safe list operations ===
+
+(define (safe-nth n lst)
+  (if (null? lst)
+    (raise 'index-out-of-bounds)
+    (if (= n 0)
+      (car lst)
+      (safe-nth (- n 1) (cdr lst)))))
+
+(display "nth 2 of (a b c): ")
+(println (with-handler
+  (lambda (e) (begin (display "err: ") e))
+  (lambda () (safe-nth 2 '(a b c)))))
+
+(display "nth 5 of (a b c): ")
+(println (with-handler
+  (lambda (e) (begin (display "err: ") e))
+  (lambda () (safe-nth 5 '(a b c)))))
+
+(display "--- done ---")
+(newline)

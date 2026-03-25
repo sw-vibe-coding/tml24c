@@ -119,14 +119,19 @@ demo-bottles2: build-full
 demo-bottles4: build-standard
     grep -v '^;;' demos/bottles4.l24 | {{cor24_run}} --run build/repl-standard.s --terminal --speed 0 -n 500000000
 
+# Escape continuations and error handling
+demo-continuations: build-standard
+    grep -v '^;;' demos/continuations.l24 | {{cor24_run}} --run build/repl-standard.s --terminal --speed 0 -n 500000000
+
 # List available demos
 demos:
     @echo "Available demos (run with: just <name>):"
     @echo ""
-    @echo "  just demo-bottles   99 Bottles — macro + tail recursion"
-    @echo "  just demo-bottles2  99 Bottles — trampoline mutual recursion (full prelude)"
-    @echo "  just demo-bottles4  99 Bottles — functional map/for-each"
-    @echo "  just demo-blink     Blink LED D2 (Ctrl-] to exit)"
+    @echo "  just demo-bottles        99 Bottles — macro + tail recursion"
+    @echo "  just demo-bottles2       99 Bottles — trampoline mutual recursion (full prelude)"
+    @echo "  just demo-bottles4       99 Bottles — functional map/for-each"
+    @echo "  just demo-continuations  Escape continuations and error handling"
+    @echo "  just demo-blink          Blink LED D2 (Ctrl-] to exit)"
     @echo ""
     @echo "Other demos (run with: just eval demos/<name>.l24):"
     @echo ""
