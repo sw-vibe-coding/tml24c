@@ -210,6 +210,20 @@ void test_eval() {
     test_eval_one("(find-first (lambda (x) (= x 3)) '(1 2 3 4 5))", "3");
     test_eval_one("(find-first (lambda (x) (= x 9)) '(1 2 3))", "nil");
 
+    /* Error handling — with-handler catches raised errors */
+    test_eval_one("(with-handler (lambda (e) (+ e 1)) (lambda () (raise 41)))", "42");
+
+    /* Error handling — normal return when no error */
+    test_eval_one("(with-handler (lambda (e) 0) (lambda () (+ 10 20)))", "30");
+
+    /* Error handling — nested handlers, inner catches */
+    test_eval_one("(with-handler (lambda (e) 'outer) (lambda () (with-handler (lambda (e) 'inner) (lambda () (raise 'oops)))))", "inner");
+
+    /* Error handling — safe division */
+    eval(read_str("(define (safe-div a b) (if (= b 0) (raise 'div-by-zero) (/ a b)))"), NIL_VAL);
+    test_eval_one("(with-handler (lambda (e) -1) (lambda () (safe-div 10 2)))", "5");
+    test_eval_one("(with-handler (lambda (e) -1) (lambda () (safe-div 10 0)))", "-1");
+
     puts_str("eval ok\n");
 }
 
@@ -391,6 +405,13 @@ void load_prelude() {
 
     /* Escape continuations */
     eval_str("(define (call/ec proc) (let ((tag (gensym))) (catch tag (proc (lambda (val) (throw tag val))))))");
+
+    /* Error handling: raise / with-handler / guard */
+    eval_str("(define *error-tag* (gensym))");
+    eval_str("(define *error-handler* nil)");
+    eval_str("(define (raise obj) (if (null? *error-handler*) (begin (display \"ERROR: \") (println obj) (exit)) (*error-handler* obj)))");
+    eval_str("(define (with-handler handler thunk) (let ((saved *error-handler*)) (catch *error-tag* (begin (set! *error-handler* (lambda (e) (begin (set! *error-handler* saved) (throw *error-tag* (handler e))))) (let ((result (thunk))) (begin (set! *error-handler* saved) result))))))");
+    eval_str("(define (error msg) (raise msg))");
 
     /* COR24-TB I/O addresses */
     eval_str("(define IO-LED #xFF0000)");

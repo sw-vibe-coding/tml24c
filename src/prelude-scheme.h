@@ -70,6 +70,14 @@ void load_prelude() {
     eval_str("(define (call/ec proc) (let ((tag (gensym))) (catch tag (proc (lambda (val) (throw tag val))))))");
     eval_str("(define call-with-escape-continuation call/ec)");
 
+    /* Error handling */
+    eval_str("(define *error-tag* (gensym))");
+    eval_str("(define *error-handler* nil)");
+    eval_str("(define (raise obj) (if (null? *error-handler*) (begin (display \"ERROR: \") (println obj) (exit)) (*error-handler* obj)))");
+    eval_str("(define (with-exception-handler handler thunk) (let ((saved *error-handler*)) (catch *error-tag* (begin (set! *error-handler* (lambda (e) (begin (set! *error-handler* saved) (throw *error-tag* (handler e))))) (let ((result (thunk))) (begin (set! *error-handler* saved) result))))))");
+    eval_str("(define with-handler with-exception-handler)");
+    eval_str("(define (error msg) (raise msg))");
+
     /* Association lists */
     eval_str("(define assoc (lambda (key alist) (if (null? alist) nil (if (eq? key (caar alist)) (car alist) (assoc key (cdr alist))))))");
     eval_str("(define get (lambda (key alist default) (if (null? alist) default (if (eq? key (caar alist)) (cdar alist) (get key (cdr alist) default)))))");

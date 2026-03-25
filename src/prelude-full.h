@@ -89,6 +89,13 @@ void load_prelude() {
     /* Escape continuations */
     eval_str("(define (call/ec proc) (let ((tag (gensym))) (catch tag (proc (lambda (val) (throw tag val))))))");
 
+    /* Error handling */
+    eval_str("(define *error-tag* (gensym))");
+    eval_str("(define *error-handler* nil)");
+    eval_str("(define (raise obj) (if (null? *error-handler*) (begin (display \"ERROR: \") (println obj) (exit)) (*error-handler* obj)))");
+    eval_str("(define (with-handler handler thunk) (let ((saved *error-handler*)) (catch *error-tag* (begin (set! *error-handler* (lambda (e) (begin (set! *error-handler* saved) (throw *error-tag* (handler e))))) (let ((result (thunk))) (begin (set! *error-handler* saved) result))))))");
+    eval_str("(define (error msg) (raise msg))");
+
     /* Trampoline */
     eval_str("(define trampoline (lambda (f) (let ((r (f))) (if (fn? r) (trampoline r) r))))");
 
