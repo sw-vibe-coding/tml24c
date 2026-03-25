@@ -224,6 +224,18 @@ void test_eval() {
     test_eval_one("(with-handler (lambda (e) -1) (lambda () (safe-div 10 2)))", "5");
     test_eval_one("(with-handler (lambda (e) -1) (lambda () (safe-div 10 0)))", "-1");
 
+    /* guard — basic clause matching */
+    test_eval_one("(guard (e ((eq? e 'div-by-zero) 0)) (safe-div 10 0))", "0");
+
+    /* guard — body returns normally */
+    test_eval_one("(guard (e ((eq? e 'div-by-zero) 0)) (safe-div 10 2))", "5");
+
+    /* guard — else clause */
+    test_eval_one("(guard (e (else 'caught)) (raise 'whatever))", "caught");
+
+    /* guard — multiple clauses, second matches */
+    test_eval_one("(guard (e ((eq? e 'a) 1) ((eq? e 'b) 2)) (raise 'b))", "2");
+
     puts_str("eval ok\n");
 }
 
@@ -412,6 +424,11 @@ void load_prelude() {
     eval_str("(define (raise obj) (if (null? *error-handler*) (begin (display \"ERROR: \") (println obj) (exit)) (*error-handler* obj)))");
     eval_str("(define (with-handler handler thunk) (let ((saved *error-handler*)) (catch *error-tag* (begin (set! *error-handler* (lambda (e) (begin (set! *error-handler* saved) (throw *error-tag* (handler e))))) (let ((result (thunk))) (begin (set! *error-handler* saved) result))))))");
     eval_str("(define (error msg) (raise msg))");
+
+    /* guard: (guard (var (test expr) ...) body)
+     * Expands to with-handler that pattern-matches the error value */
+    eval_str("(define (guard-clauses var clauses) (if (null? clauses) '(raise e) (let ((clause (car clauses))) (if (eq? (car clause) 'else) (cadr clause) `(if ,(car clause) ,(cadr clause) ,(guard-clauses var (cdr clauses)))))))");
+    eval_str("(defmacro guard (binding body) `(with-handler (lambda (,(car binding)) ,(guard-clauses (car binding) (cdr binding))) (lambda () ,body)))");
 
     /* COR24-TB I/O addresses */
     eval_str("(define IO-LED #xFF0000)");

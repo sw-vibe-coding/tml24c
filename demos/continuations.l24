@@ -100,5 +100,29 @@
   (lambda (e) (begin (display "err: ") e))
   (lambda () (safe-nth 5 '(a b c)))))
 
+;; === Part 5: guard — pattern-matched error handling ===
+
+(display "--- guard ---")
+(newline)
+
+;; guard with clause matching
+(display "div 10/0 guarded: ")
+(println (guard (e
+    ((eq? e 'div-by-zero) 'caught-zero))
+  (safe-div 10 0)))
+
+;; guard with else
+(display "guard else: ")
+(println (guard (e
+    ((eq? e 'expected) 'nope)
+    (else 'fallback))
+  (raise 'surprise)))
+
+;; guard passes through on success
+(display "guard ok: ")
+(println (guard (e
+    ((eq? e 'div-by-zero) -1))
+  (safe-div 20 4)))
+
 (display "--- done ---")
 (newline)
