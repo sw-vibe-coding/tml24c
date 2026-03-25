@@ -1,0 +1,101 @@
+;; functional.l24 — Functional programming toolkit demo
+;; Run with: just eval-full demos/functional.l24
+
+;; === fn? — callable type predicate ===
+
+(display "--- fn? ---")
+(newline)
+(display "fn? on lambda: ")
+(println (fn? (lambda (x) x)))
+(display "fn? on +: ")
+(println (fn? +))
+(display "fn? on 42: ")
+(println (fn? 42))
+
+;; === Function combinators ===
+
+(display "--- compose ---")
+(newline)
+
+(define (double x) (* x 2))
+(define (inc x) (+ x 1))
+
+;; compose: (f . g)(x) = f(g(x))
+(display "(double . inc)(5) = ")
+(println ((compose double inc) 5))
+
+(display "(inc . double)(5) = ")
+(println ((compose inc double) 5))
+
+;; complement: negate a predicate
+(define nonempty? (complement null?))
+(display "nonempty? '(1 2): ")
+(println (nonempty? '(1 2)))
+(display "nonempty? '(): ")
+(println (nonempty? '()))
+
+;; constantly: always return the same value
+(display "map (constantly 0) '(a b c): ")
+(println (map (constantly 0) '(a b c)))
+
+;; === List predicates ===
+
+(display "--- every? / none? ---")
+(newline)
+
+(display "every? number? '(1 2 3): ")
+(println (every? number? '(1 2 3)))
+(display "every? number? '(1 a 3): ")
+(println (every? number? '(1 a 3)))
+
+(display "none? null? '(1 2 3): ")
+(println (none? null? '(1 2 3)))
+
+;; Combine: all positive?
+(define positive? (lambda (n) (< 0 n)))
+(display "every? positive? '(1 2 3): ")
+(println (every? positive? '(1 2 3)))
+(display "every? positive? '(1 -2 3): ")
+(println (every? positive? '(1 -2 3)))
+
+;; === List utilities ===
+
+(display "--- flatten / zip ---")
+(newline)
+
+(display "flatten '(1 (2 (3 4)) 5): ")
+(println (flatten '(1 (2 (3 4)) 5)))
+
+(display "zip '(a b c) '(1 2 3): ")
+(println (zip '(a b c) '(1 2 3)))
+
+;; Practical: build a lookup table from keys and values
+(define keys '(name age city))
+(define vals '(alice 30 paris))
+(display "lookup table: ")
+(println (zip keys vals))
+
+;; === Putting it together ===
+
+(display "--- combined ---")
+(newline)
+
+;; Pipeline: generate, transform, check
+(define data '(1 -3 5 -7 9))
+(display "data: ")
+(println data)
+
+(display "all positive? ")
+(println (every? positive? data))
+
+(display "none negative? ")
+(println (none? (complement positive?) data))
+
+(display "abs all: ")
+(println (map abs data))
+
+(display "all positive after abs? ")
+(println (every? positive? (map abs data)))
+
+(display "--- done ---")
+(newline)

@@ -256,6 +256,27 @@ void test_eval() {
     /* guard — multiple clauses, second matches */
     test_eval_one("(guard (e ((eq? e 'a) 1) ((eq? e 'b) 2)) (raise 'b))", "2");
 
+    /* fn? — callable type predicate */
+    test_eval_one("(fn? +)", "t");
+    test_eval_one("(fn? double)", "t");
+    test_eval_one("(fn? 42)", "nil");
+    test_eval_one("(fn? 'foo)", "nil");
+
+    /* compose / complement */
+    eval(read_str("(define inc (lambda (x) (+ x 1)))"), NIL_VAL);
+    test_eval_one("((compose double inc) 5)", "12");
+    test_eval_one("((complement null?) '(1))", "t");
+    test_eval_one("((complement null?) '())", "nil");
+
+    /* every? / none? / flatten / zip / constantly */
+    test_eval_one("(every? number? '(1 2 3))", "t");
+    test_eval_one("(every? number? '(1 a 3))", "nil");
+    test_eval_one("(none? number? '(a b c))", "t");
+    test_eval_one("(none? number? '(1 b c))", "nil");
+    test_eval_one("(flatten '(1 (2 (3)) 4))", "(1 2 3 4)");
+    test_eval_one("(zip '(a b) '(1 2))", "((a 1) (b 2))");
+    test_eval_one("((constantly 42) 99)", "42");
+
     puts_str("eval ok\n");
 }
 
