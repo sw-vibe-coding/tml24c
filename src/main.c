@@ -262,6 +262,10 @@ void test_eval() {
     eval(read_str("(let ((x 5)) (set! mb-log x) (* x 2))"), NIL_VAL);
     test_eval_one("mb-log", "5");
 
+    /* Named let — iteration */
+    test_eval_one("(let loop ((i 0)) (if (< i 5) (loop (+ i 1)) i))", "5");
+    test_eval_one("(let sum ((n 10) (acc 0)) (if (= n 0) acc (sum (- n 1) (+ acc n))))", "55");
+
     /* Multi-body when/unless */
     eval(read_str("(set! mb-log nil)"), NIL_VAL);
     eval(read_str("(when t (set! mb-log 'ran) 42)"), NIL_VAL);
@@ -409,7 +413,8 @@ void load_prelude() {
     eval_str("(defmacro unless (cond . body) `(if ,cond nil (begin ,@body)))");
 
     /* let: (let ((x 1) (y 2)) body) => ((lambda (x y) body) 1 2) */
-    eval_str("(defmacro let (bindings . body) `((lambda ,(map car bindings) ,@body) ,@(map cadr bindings)))");
+    eval_str("(define (let-expand first rest) (if (pair? first) `((lambda ,(map car first) ,@rest) ,@(map cadr first)) `((lambda () (define ,first (lambda ,(map car (car rest)) ,@(cdr rest))) (,first ,@(map cadr (car rest)))))))");
+    eval_str("(defmacro let (first . rest) (let-expand first rest))");
 
     /* and/or (two-arg, short-circuit via if) */
     eval_str("(defmacro and (a b) `(if ,a ,b nil))");

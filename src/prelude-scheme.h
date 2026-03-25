@@ -38,9 +38,10 @@ void load_prelude() {
     eval_str("(define remainder %)");
 
     /* Scheme macros */
-    eval_str("(defmacro let (bindings . body) `((lambda ,(map car bindings) ,@body) ,@(map cadr bindings)))");
-    eval_str("(define let*-expand (lambda (bindings body) (if (null? (cdr bindings)) `(let (,(car bindings)) ,body) `(let (,(car bindings)) ,(let*-expand (cdr bindings) body)))))");
-    eval_str("(defmacro let* (bindings body) (let*-expand bindings body))");
+    eval_str("(define (let-expand first rest) (if (pair? first) `((lambda ,(map car first) ,@rest) ,@(map cadr first)) `((lambda () (define ,first (lambda ,(map car (car rest)) ,@(cdr rest))) (,first ,@(map cadr (car rest)))))))");
+    eval_str("(defmacro let (first . rest) (let-expand first rest))");
+    eval_str("(define (let*-expand bindings body) (if (null? (cdr bindings)) `(let (,(car bindings)) ,@body) `(let (,(car bindings)) ,(let*-expand (cdr bindings) body))))");
+    eval_str("(defmacro let* (bindings . body) (let*-expand bindings body))");
     eval_str("(define cond-expand (lambda (clauses) (if (null? clauses) nil (if (eq? (caar clauses) 'else) (cadr (car clauses)) `(if ,(caar clauses) ,(cadr (car clauses)) ,(cond-expand (cdr clauses)))))))");
     eval_str("(defmacro cond clauses (cond-expand clauses))");
     eval_str("(defmacro and (a b) `(if ,a ,b nil))");

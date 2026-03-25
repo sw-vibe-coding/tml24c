@@ -72,5 +72,24 @@
 (display "10/0 = ")
 (println (safe-divide 10 0))
 
+;; === Named let — iteration ===
+
+(display "--- named let ---")
+(newline)
+
+;; Count to 5
+(display "count to 5: ")
+(println (let loop ((i 0)) (if (< i 5) (loop (+ i 1)) i)))
+
+;; Sum 1..10
+(display "sum 1..10: ")
+(println (let sum ((n 10) (acc 0)) (if (= n 0) acc (sum (- n 1) (+ acc n)))))
+
+;; Multi-body let with side effects
+(define named-log nil)
+(let step ((i 3)) (set! named-log (cons i named-log)) (if (< 0 i) (step (- i 1)) nil))
+(display "trace: ")
+(println named-log)
+
 (display "--- done ---")
 (newline)
