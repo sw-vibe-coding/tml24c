@@ -4,15 +4,20 @@
  * Works with --stack-kilobytes 3 (default). */
 
 void load_prelude() {
-    /* List operations */
-    eval_str("(define map (lambda (f lst) (if (null? lst) lst (cons (f (car lst)) (map f (cdr lst))))))");
-    eval_str("(define filter (lambda (p lst) (if (null? lst) lst (if (p (car lst)) (cons (car lst) (filter p (cdr lst))) (filter p (cdr lst))))))");
+    /* Core list ops — tail-recursive where possible */
+    eval_str("(define (reverse-acc lst acc) (if (null? lst) acc (reverse-acc (cdr lst) (cons (car lst) acc))))");
+    eval_str("(define (reverse lst) (reverse-acc lst nil))");
+    eval_str("(define (map-acc f lst acc) (if (null? lst) (reverse acc) (map-acc f (cdr lst) (cons (f (car lst)) acc))))");
+    eval_str("(define (map f lst) (map-acc f lst nil))");
+    eval_str("(define (filter-acc p lst acc) (if (null? lst) (reverse acc) (if (p (car lst)) (filter-acc p (cdr lst) (cons (car lst) acc)) (filter-acc p (cdr lst) acc))))");
+    eval_str("(define (filter p lst) (filter-acc p lst nil))");
     eval_str("(define reduce (lambda (f init lst) (if (null? lst) init (reduce f (f init (car lst)) (cdr lst)))))");
     eval_str("(define foldr (lambda (f init lst) (if (null? lst) init (f (car lst) (foldr f init (cdr lst))))))");
-    eval_str("(define length (lambda (lst) (if (null? lst) 0 (+ 1 (length (cdr lst))))))");
-    eval_str("(define append (lambda (a b) (if (null? a) b (cons (car a) (append (cdr a) b)))))");
-    eval_str("(define reverse (lambda (lst) (reduce (lambda (acc x) (cons x acc)) nil lst)))");
-    eval_str("(define nth (lambda (n lst) (if (= n 0) (car lst) (nth (- n 1) (cdr lst)))))");
+    eval_str("(define (length-acc lst n) (if (null? lst) n (length-acc (cdr lst) (+ n 1))))");
+    eval_str("(define (length lst) (length-acc lst 0))");
+    eval_str("(define (append-acc ra b) (if (null? ra) b (append-acc (cdr ra) (cons (car ra) b))))");
+    eval_str("(define (append a b) (append-acc (reverse a) b))");
+    eval_str("(define (nth n lst) (if (= n 0) (car lst) (nth (- n 1) (cdr lst))))");
 
     /* Macros */
     eval_str("(defmacro when (cond . body) `(if ,cond (begin ,@body) nil))");
