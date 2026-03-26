@@ -320,6 +320,11 @@ void test_eval() {
     test_eval_one("(symbol? nil)", "nil");
     test_eval_one("(symbol? t)", "nil");
 
+    /* substring */
+    test_eval_one("(substring \"hello\" 1 3)", "\"el\"");
+    test_eval_one("(substring \"abcdef\" 0 3)", "\"abc\"");
+    test_eval_one("(substring \"abcdef\" 3 6)", "\"def\"");
+
     /* fn? — callable type predicate */
     test_eval_one("(fn? +)", "t");
     test_eval_one("(fn? double)", "t");
