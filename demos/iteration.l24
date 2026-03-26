@@ -1,0 +1,70 @@
+;; iteration.l24 — Named let, do loop, and iteration patterns
+;; Run with: just eval demos/iteration.l24
+
+;; === Named let ===
+
+(display "--- named let ---")
+(newline)
+
+;; Countdown
+(display "countdown: ")
+(println (let loop ((i 5)) (if (= i 0) 'done (begin (print i) (display " ") (loop (- i 1))))))
+
+;; Fibonacci via named let
+(define (fib n) (let loop ((i n) (a 0) (b 1)) (if (= i 0) a (loop (- i 1) b (+ a b)))))
+
+(display "fib 10: ")
+(println (fib 10))
+
+;; Collect results in reverse-then-reverse pattern
+(define (squares-up-to n) (let loop ((i 1) (acc nil)) (if (< n (* i i)) (reverse acc) (loop (+ i 1) (cons (* i i) acc)))))
+
+(display "squares up to 50: ")
+(println (squares-up-to 50))
+
+;; === do loop ===
+
+(display "--- do loop ---")
+(newline)
+
+;; Simple count
+(display "count 0..4: ")
+(do ((i 0 (+ i 1))) ((= i 5) nil) (print i) (display " "))
+(newline)
+
+;; Sum with accumulator
+(display "sum 1..10: ")
+(println (do ((i 1 (+ i 1)) (s 0 (+ s i))) ((= i 11) s)))
+
+;; Build a list with do
+(display "powers of 2: ")
+(println (do ((i 0 (+ i 1)) (acc nil (cons (* 2 i) acc))) ((= i 6) (reverse acc))))
+
+;; === Practical: string processing ===
+
+(display "--- string ops ---")
+(newline)
+
+;; substring
+(define msg "hello world")
+(display "first 5: ")
+(println (substring msg 0 5))
+(display "last 5: ")
+(println (substring msg 6 11))
+
+;; symbol? for type dispatch
+(define (describe x) (if (number? x) "number" (if (symbol? x) "symbol" (if (string? x) "string" (if (pair? x) "list" (if (fn? x) "function" "unknown"))))))
+
+(display "42 is: ")
+(println (describe 42))
+(display "'foo is: ")
+(println (describe 'foo))
+(display "\"hi\" is: ")
+(println (describe "hi"))
+(display "'(1 2) is: ")
+(println (describe '(1 2)))
+(display "+ is: ")
+(println (describe +))
+
+(display "--- done ---")
+(newline)
