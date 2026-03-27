@@ -86,6 +86,10 @@ void test_reader() {
     /* Dotted pair */
     test_read_one("(1 . 2)", "(1 . 2)");
 
+    /* Multi-element dotted pair */
+    test_read_one("(a b . c)", "(a b . c)");
+    test_read_one("(a b c . d)", "(a b c . d)");
+
     /* Nested list */
     test_read_one("(a (b c))", "(a (b c))");
 
@@ -320,6 +324,11 @@ void test_eval() {
     test_eval_one("(symbol? nil)", "nil");
     test_eval_one("(symbol? t)", "nil");
 
+    /* defmacro 3-param rest binding */
+    eval(read_str("(defmacro test-bind (a b . c) `(list ',a ',b ',c))"), NIL_VAL);
+    test_eval_one("(test-bind x y z)", "(x y (z))");
+    test_eval_one("(test-bind x y)", "(x y nil)");
+
     /* format */
     test_eval_one("(format \"hello ~a\" \"world\")", "\"hello world\"");
     test_eval_one("(format \"~a bottles of ~a\" 99 \"beer\")", "\"99 bottles of beer\"");
@@ -454,8 +463,7 @@ void load_prelude() {
     /* and/or (two-arg, short-circuit via if) */
     /* do: (do ((var init step) ...) (test result) body...) */
     /* do: (do ((var init step) ...) (test result) body...) — uses named let */
-    eval_str("(define (do-expand args) `(let _do_ ,(map (lambda (c) (list (car c) (cadr c))) (car args)) (if ,(car (cadr args)) ,(if (null? (cdr (cadr args))) nil (cadr (cadr args))) (begin ,@(cdr (cdr args)) (_do_ ,@(map caddr (car args)))))))");
-    eval_str("(defmacro do rest (do-expand rest))");
+    eval_str("(defmacro do (clauses test . body) `(let _do_ ,(map (lambda (c) (list (car c) (cadr c))) clauses) (if ,(car test) ,(if (null? (cdr test)) nil (cadr test)) (begin ,@body (_do_ ,@(map caddr clauses))))))");
 
 
     eval_str("(defmacro and (a b) `(if ,a ,b nil))");

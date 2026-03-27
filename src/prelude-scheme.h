@@ -49,8 +49,7 @@ void load_prelude() {
     eval_str("(defmacro let* (bindings . body) (let*-expand bindings body))");
     eval_str("(define cond-expand (lambda (clauses) (if (null? clauses) nil (if (eq? (caar clauses) 'else) (cadr (car clauses)) `(if ,(caar clauses) ,(cadr (car clauses)) ,(cond-expand (cdr clauses)))))))");
     eval_str("(defmacro cond clauses (cond-expand clauses))");
-    eval_str("(define (do-expand args) `(let _do_ ,(map (lambda (c) (list (car c) (cadr c))) (car args)) (if ,(car (cadr args)) ,(if (null? (cdr (cadr args))) nil (cadr (cadr args))) (begin ,@(cdr (cdr args)) (_do_ ,@(map caddr (car args)))))))");
-    eval_str("(defmacro do rest (do-expand rest))");
+    eval_str("(defmacro do (clauses test . body) `(let _do_ ,(map (lambda (c) (list (car c) (cadr c))) clauses) (if ,(car test) ,(if (null? (cdr test)) nil (cadr test)) (begin ,@body (_do_ ,@(map caddr clauses))))))");
     eval_str("(defmacro and (a b) `(if ,a ,b nil))");
     eval_str("(defmacro or (a b) `(if ,a ,a ,b))");
     eval_str("(defmacro when (test . body) `(if ,test (begin ,@body) nil))");

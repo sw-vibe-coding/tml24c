@@ -125,6 +125,9 @@ int read_list() {
     int tail = head;
     while (*read_ptr && *read_ptr != ')') {
         int elem = read_expr();
+        int cell = cons(elem, NIL_VAL);
+        heap_cdr[PTR_IDX(tail)] = cell;
+        tail = cell;
         skip_whitespace();
 
         /* check for dot after element */
@@ -133,15 +136,12 @@ int read_list() {
             skip_whitespace();
             int d = read_expr();
             heap_cdr[PTR_IDX(tail)] = d;
+            skip_whitespace();
             if (*read_ptr == ')') {
                 read_ptr = read_ptr + 1;
             }
             return head;
         }
-
-        int cell = cons(elem, NIL_VAL);
-        heap_cdr[PTR_IDX(tail)] = cell;
-        tail = cell;
     }
 
     if (*read_ptr == ')') {
