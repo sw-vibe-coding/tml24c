@@ -275,6 +275,12 @@ void test_eval() {
     test_eval_one("(guard (e (else 0)) (set! guard-log 'ran) (+ 1 2))", "3");
     test_eval_one("guard-log", "ran");
 
+    /* case */
+    test_eval_one("(case 2 ((1) 'one) ((2) 'two) ((3) 'three))", "two");
+    test_eval_one("(case 5 ((1 2) 'low) ((3 4) 'mid) (else 'high))", "high");
+    test_eval_one("(case 'b ((a) 1) ((b) 2) ((c) 3))", "2");
+    test_eval_one("(case 99 ((1) 'nope))", "nil");
+
     /* Multi-body let */
     test_eval_one("(let ((x 1)) (+ x 1) (* x 10))", "10");
     eval(read_str("(define mb-log nil)"), NIL_VAL);
@@ -487,6 +493,11 @@ void load_prelude() {
     /* cond: (cond (test1 expr1) (test2 expr2) ... (t default)) */
     eval_str("(define cond-expand (lambda (clauses) (if (null? clauses) nil (if (eq? (caar clauses) 't) (cadr (car clauses)) `(if ,(caar clauses) ,(cadr (car clauses)) ,(cond-expand (cdr clauses)))))))");
     eval_str("(defmacro cond clauses (cond-expand clauses))");
+
+    /* case: (case expr ((datum ...) body) ... (else body)) */
+    eval_str("(define (case-match-datums key datums) (if (null? datums) nil (if (eq? key (car datums)) t (case-match-datums key (cdr datums)))))");
+    eval_str("(define (case-expand-clauses key clauses) (if (null? clauses) nil (if (eq? (caar clauses) 'else) (cadr (car clauses)) `(if (case-match-datums ,key ',(caar clauses)) ,(cadr (car clauses)) ,(case-expand-clauses key (cdr clauses))))))");
+    eval_str("(defmacro case (expr . clauses) `(let ((_k_ ,expr)) ,(case-expand-clauses '_k_ clauses)))");
 
     /* Threading macros: -> threads x as first arg, ->> as last arg.
      * Two-form version; nest for more: (-> (-> x f) g) */

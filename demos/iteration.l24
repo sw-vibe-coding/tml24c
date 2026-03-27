@@ -80,5 +80,19 @@
 (do ((i 3 (- i 1))) ((= i 0) nil) (println (format "  T-~a..." i)))
 (println (format "  Liftoff!"))
 
+;; === case — multi-way dispatch ===
+
+(display "--- case ---")
+(newline)
+
+(define (day-type d) (case d ((mon tue wed thu fri) 'weekday) ((sat sun) 'weekend) (else 'unknown)))
+(println (format "mon = ~a" (day-type 'mon)))
+(println (format "sat = ~a" (day-type 'sat)))
+(println (format "xyz = ~a" (day-type 'xyz)))
+
+(define (classify n) (case (% n 3) ((0) "fizz") ((1) "one") ((2) "two")))
+(for-each (lambda (n) (display (format "~a:~a " n (classify n)))) '(0 1 2 3 4 5))
+(newline)
+
 (display "--- done ---")
 (newline)
