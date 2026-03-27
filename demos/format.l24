@@ -1,0 +1,70 @@
+;; format.l24 — String formatting and variadic patterns
+;; Run with: just eval demos/format.l24
+
+;; === format basics ===
+
+(display "--- format ---")
+(newline)
+
+;; ~a inserts any value
+(println (format "hello ~a!" "world"))
+(println (format "~a + ~a = ~a" 2 3 (+ 2 3)))
+(println (format "symbol: ~a" 'foo))
+
+;; ~~ for literal tilde
+(println (format "100~~ complete"))
+
+;; Practical: formatted output in loops
+(display "countdown: ")
+(do ((i 3 (- i 1))) ((= i 0) nil) (display (format "~a " i)))
+(println "go!")
+
+;; === format for readable output ===
+
+(display "--- practical formatting ---")
+(newline)
+
+;; Table-like output
+(define items '((apple 3) (banana 7) (cherry 2)))
+(for-each (lambda (item) (println (format "  ~a: ~a" (car item) (cadr item)))) items)
+
+;; Error messages
+(define (checked-div a b)
+  (if (= b 0)
+    (raise (format "division by zero: ~a / ~a" a b))
+    (/ a b)))
+
+(display "10/3 = ")
+(println (with-handler (lambda (e) (begin (println e) -1)) (lambda () (checked-div 10 3))))
+(display "10/0 = ")
+(println (with-handler (lambda (e) (begin (println e) -1)) (lambda () (checked-div 10 0))))
+
+;; === Variadic macros (enabled by reader dotted-pair fix) ===
+
+(display "--- multi-body forms ---")
+(newline)
+
+;; These all rely on (param . rest) parsing working correctly
+(define result
+  (let ((x 10) (y 20))
+    (display (format "  x=~a y=~a " x y))
+    (+ x y)))
+(println (format "sum=~a" result))
+
+;; when with multiple body forms
+(when t
+  (display "  when: ")
+  (println "multiple forms work"))
+
+;; do with body
+(define trace nil)
+(do ((i 0 (+ i 1)))
+    ((= i 4) nil)
+  (set! trace (cons i trace))
+  (display (format "  step ~a " i)))
+(newline)
+(display "trace: ")
+(println (reverse trace))
+
+(display "--- done ---")
+(newline)

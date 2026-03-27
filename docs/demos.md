@@ -17,6 +17,7 @@ All demos are in the `demos/` directory. Run with `just eval demos/<name>.l24` o
 | `lazy.l24` | Lazy sequences | `just eval demos/lazy.l24` | Infinite naturals, powers of 2, lazy map/filter, lazy fibonacci |
 | `utilities.l24` | partial, juxt, doseq, dotimes | `just eval demos/utilities.l24` | Curried functions, multi-result, iteration macros |
 | `multibody.l24` | Multi-body lambda/define, named let, do loop | `just eval demos/multibody.l24` | Implicit begin, named let iteration, R7RS do loop |
+| `format.l24` | format, multi-body forms | `just eval demos/format.l24` | String interpolation (~a), error messages, variadic macro patterns |
 | `iteration.l24` | Named let, do, symbol?, substring, format | `just eval demos/iteration.l24` | Iteration patterns, fibonacci, string formatting, type dispatch |
 | `multiline.l24` | Multi-line input | `just eval demos/multiline.l24` | Multi-line function definitions with paren-depth tracking |
 | `metaprogramming.l24` | eval, macroexpand, gensym | `just eval demos/metaprogramming.l24` | Runtime eval, macro introspection, hygienic gensym |
