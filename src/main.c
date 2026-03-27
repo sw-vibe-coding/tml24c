@@ -275,6 +275,12 @@ void test_eval() {
     test_eval_one("(guard (e (else 0)) (set! guard-log 'ran) (+ 1 2))", "3");
     test_eval_one("guard-log", "ran");
 
+    /* values / call-with-values */
+    test_eval_one("(call-with-values (lambda () (values 1 2)) +)", "3");
+    test_eval_one("(call-with-values (lambda () (values 10 20 30)) list)", "(10 20 30)");
+    eval(read_str("(define (swap a b) (values b a))"), NIL_VAL);
+    test_eval_one("(call-with-values (lambda () (swap 1 2)) list)", "(2 1)");
+
     /* char->integer / integer->char */
     test_eval_one("(char->integer 65)", "65");
     test_eval_one("(integer->char 65)", "65");
@@ -516,6 +522,10 @@ void load_prelude() {
     eval_str("(define (case-match-datums key datums) (if (null? datums) nil (if (eq? key (car datums)) t (case-match-datums key (cdr datums)))))");
     eval_str("(define (case-expand-clauses key clauses) (if (null? clauses) nil (if (eq? (caar clauses) 'else) (cadr (car clauses)) `(if (case-match-datums ,key ',(caar clauses)) ,(cadr (car clauses)) ,(case-expand-clauses key (cdr clauses))))))");
     eval_str("(defmacro case (expr . clauses) `(let ((_k_ ,expr)) ,(case-expand-clauses '_k_ clauses)))");
+
+    /* Multiple return values */
+    eval_str("(define values list)");
+    eval_str("(define (call-with-values producer consumer) (apply consumer (producer)))");
 
     /* letrec: (letrec ((var val) ...) body...) */
     eval_str("(define (letrec-sets bindings) (if (null? bindings) nil (cons `(set! ,(caar bindings) ,(cadr (car bindings))) (letrec-sets (cdr bindings)))))");

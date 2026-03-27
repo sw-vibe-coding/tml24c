@@ -66,6 +66,19 @@
 (display "+ is: ")
 (println (describe +))
 
+;; === values — multiple return values ===
+
+(display "--- values ---")
+(newline)
+
+(define (divmod a b) (values (/ a b) (% a b)))
+(display "17 divmod 5: ")
+(println (call-with-values (lambda () (divmod 17 5)) (lambda (q r) (format "q=~a r=~a" q r))))
+
+(define (min-max lst) (let loop ((l (cdr lst)) (lo (car lst)) (hi (car lst))) (if (null? l) (values lo hi) (loop (cdr l) (min lo (car l)) (max hi (car l))))))
+(display "min-max (3 1 4 1 5): ")
+(println (call-with-values (lambda () (min-max '(3 1 4 1 5))) (lambda (lo hi) (format "~a..~a" lo hi))))
+
 ;; === string utilities ===
 
 (display "--- string utils ---")

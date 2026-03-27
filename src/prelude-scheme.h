@@ -60,6 +60,10 @@ void load_prelude() {
     eval_str("(defmacro when (test . body) `(if ,test (begin ,@body) nil))");
     eval_str("(defmacro unless (test . body) `(if ,test nil (begin ,@body)))");
 
+    /* Multiple return values */
+    eval_str("(define values list)");
+    eval_str("(define (call-with-values producer consumer) (apply consumer (producer)))");
+
     /* define-fn: (define-fn (f x) body) shorthand */
     eval_str("(defmacro define-fn (sig body) `(define ,(car sig) (lambda ,(cdr sig) ,body)))");
 

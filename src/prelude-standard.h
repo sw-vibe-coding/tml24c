@@ -35,6 +35,10 @@ void load_prelude() {
     eval_str("(define (letrec-sets bindings) (if (null? bindings) nil (cons `(set! ,(caar bindings) ,(cadr (car bindings))) (letrec-sets (cdr bindings)))))");
     eval_str("(defmacro letrec (bindings . body) `((lambda ,(map car bindings) ,@(letrec-sets bindings) ,@body) ,@(map (lambda (b) nil) bindings)))");
 
+    /* Multiple return values */
+    eval_str("(define values list)");
+    eval_str("(define (call-with-values producer consumer) (apply consumer (producer)))");
+
     /* Comparison */
     eval_str("(define > (lambda (a b) (< b a)))");
     eval_str("(define >= (lambda (a b) (not (< a b))))");
