@@ -66,6 +66,23 @@
 (display "+ is: ")
 (println (describe +))
 
+;; === string utilities ===
+
+(display "--- string utils ---")
+(newline)
+
+(display "char A = ")
+(println (char->integer (string-ref "A" 0)))
+
+(display "index of 'l' in hello: ")
+(println (string-index "hello" 108))
+
+(display "contains 'world': ")
+(println (string-contains? "hello world" "world"))
+
+(display "contains 'xyz': ")
+(println (string-contains? "hello" "xyz"))
+
 ;; === format — string interpolation ===
 
 (display "--- format ---")

@@ -89,6 +89,10 @@ int wind_depth;                    /* current wind stack depth */
 #define PRIM_SYMBOLP    43
 #define PRIM_SUBSTR     44
 #define PRIM_FORMAT     45
+#define PRIM_CHR_TO_INT 46
+#define PRIM_INT_TO_CHR 47
+#define PRIM_STR_INDEX  48
+#define PRIM_STR_CONTAINS 49
 
 /* --- Extended object accessors --- */
 
@@ -328,6 +332,33 @@ int apply_primitive(int id, int args) {
         }
         buf[bi] = 0;
         return make_string(buf, bi);
+    }
+    if (id == PRIM_CHR_TO_INT) { return a; }
+    if (id == PRIM_INT_TO_CHR) { return a; }
+    if (id == PRIM_STR_INDEX) {
+        /* (string-index str char-code) — returns index or -1 */
+        char *s = string_data(a);
+        int len = string_len(a);
+        int ch = FIXNUM_VAL(b);
+        int i = 0;
+        while (i < len) { if (s[i] == ch) return MAKE_FIXNUM(i); i = i + 1; }
+        return MAKE_FIXNUM(-1);
+    }
+    if (id == PRIM_STR_CONTAINS) {
+        /* (string-contains? haystack needle) */
+        char *h = string_data(a);
+        int hlen = string_len(a);
+        char *n = string_data(b);
+        int nlen = string_len(b);
+        if (nlen == 0) return T_VAL;
+        int i = 0;
+        while (i <= hlen - nlen) {
+            int j = 0;
+            while (j < nlen && h[i + j] == n[j]) j = j + 1;
+            if (j == nlen) return T_VAL;
+            i = i + 1;
+        }
+        return NIL_VAL;
     }
     if (id == PRIM_SUBSTR) {
         /* (substring str start end) */
@@ -880,5 +911,9 @@ void eval_init() {
     register_prim("symbol?", PRIM_SYMBOLP);
     register_prim("substring", PRIM_SUBSTR);
     register_prim("format", PRIM_FORMAT);
+    register_prim("char->integer", PRIM_CHR_TO_INT);
+    register_prim("integer->char", PRIM_INT_TO_CHR);
+    register_prim("string-index", PRIM_STR_INDEX);
+    register_prim("string-contains?", PRIM_STR_CONTAINS);
     gensym_counter = 0;
 }

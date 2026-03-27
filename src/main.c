@@ -275,6 +275,20 @@ void test_eval() {
     test_eval_one("(guard (e (else 0)) (set! guard-log 'ran) (+ 1 2))", "3");
     test_eval_one("guard-log", "ran");
 
+    /* char->integer / integer->char */
+    test_eval_one("(char->integer 65)", "65");
+    test_eval_one("(integer->char 65)", "65");
+    test_eval_one("(char->integer (string-ref \"A\" 0))", "65");
+
+    /* string-index */
+    test_eval_one("(string-index \"hello\" 108)", "2");
+    test_eval_one("(string-index \"hello\" 120)", "-1");
+
+    /* string-contains? */
+    test_eval_one("(string-contains? \"hello world\" \"world\")", "t");
+    test_eval_one("(string-contains? \"hello\" \"xyz\")", "nil");
+    test_eval_one("(string-contains? \"abcabc\" \"cab\")", "t");
+
     /* letrec — mutually recursive bindings */
     test_eval_one("(letrec ((f (lambda (n) (if (= n 0) 1 (* n (f (- n 1))))))) (f 5))", "120");
     test_eval_one("(letrec ((even? (lambda (n) (if (= n 0) t (odd? (- n 1))))) (odd? (lambda (n) (if (= n 0) nil (even? (- n 1)))))) (even? 4))", "t");
