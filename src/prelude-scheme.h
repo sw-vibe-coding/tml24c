@@ -52,6 +52,8 @@ void load_prelude() {
     eval_str("(define (case-match-datums key datums) (if (null? datums) nil (if (eq? key (car datums)) t (case-match-datums key (cdr datums)))))");
     eval_str("(define (case-expand-clauses key clauses) (if (null? clauses) nil (if (eq? (caar clauses) 'else) (cadr (car clauses)) `(if (case-match-datums ,key ',(caar clauses)) ,(cadr (car clauses)) ,(case-expand-clauses key (cdr clauses))))))");
     eval_str("(defmacro case (expr . clauses) `(let ((_k_ ,expr)) ,(case-expand-clauses '_k_ clauses)))");
+    eval_str("(define (letrec-sets bindings) (if (null? bindings) nil (cons `(set! ,(caar bindings) ,(cadr (car bindings))) (letrec-sets (cdr bindings)))))");
+    eval_str("(defmacro letrec (bindings . body) `((lambda ,(map car bindings) ,@(letrec-sets bindings) ,@body) ,@(map (lambda (b) nil) bindings)))");
     eval_str("(defmacro do (clauses test . body) `(let _do_ ,(map (lambda (c) (list (car c) (cadr c))) clauses) (if ,(car test) ,(if (null? (cdr test)) nil (cadr test)) (begin ,@body (_do_ ,@(map caddr clauses))))))");
     eval_str("(defmacro and (a b) `(if ,a ,b nil))");
     eval_str("(defmacro or (a b) `(if ,a ,a ,b))");

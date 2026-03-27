@@ -275,6 +275,10 @@ void test_eval() {
     test_eval_one("(guard (e (else 0)) (set! guard-log 'ran) (+ 1 2))", "3");
     test_eval_one("guard-log", "ran");
 
+    /* letrec — mutually recursive bindings */
+    test_eval_one("(letrec ((f (lambda (n) (if (= n 0) 1 (* n (f (- n 1))))))) (f 5))", "120");
+    test_eval_one("(letrec ((even? (lambda (n) (if (= n 0) t (odd? (- n 1))))) (odd? (lambda (n) (if (= n 0) nil (even? (- n 1)))))) (even? 4))", "t");
+
     /* case */
     test_eval_one("(case 2 ((1) 'one) ((2) 'two) ((3) 'three))", "two");
     test_eval_one("(case 5 ((1 2) 'low) ((3 4) 'mid) (else 'high))", "high");
@@ -498,6 +502,10 @@ void load_prelude() {
     eval_str("(define (case-match-datums key datums) (if (null? datums) nil (if (eq? key (car datums)) t (case-match-datums key (cdr datums)))))");
     eval_str("(define (case-expand-clauses key clauses) (if (null? clauses) nil (if (eq? (caar clauses) 'else) (cadr (car clauses)) `(if (case-match-datums ,key ',(caar clauses)) ,(cadr (car clauses)) ,(case-expand-clauses key (cdr clauses))))))");
     eval_str("(defmacro case (expr . clauses) `(let ((_k_ ,expr)) ,(case-expand-clauses '_k_ clauses)))");
+
+    /* letrec: (letrec ((var val) ...) body...) */
+    eval_str("(define (letrec-sets bindings) (if (null? bindings) nil (cons `(set! ,(caar bindings) ,(cadr (car bindings))) (letrec-sets (cdr bindings)))))");
+    eval_str("(defmacro letrec (bindings . body) `((lambda ,(map car bindings) ,@(letrec-sets bindings) ,@body) ,@(map (lambda (b) nil) bindings)))");
 
     /* Threading macros: -> threads x as first arg, ->> as last arg.
      * Two-form version; nest for more: (-> (-> x f) g) */

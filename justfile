@@ -108,7 +108,7 @@ test: build
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Running tml24c tests..."
-    echo "" | {{cor24_run}} --run build/tml24c.s --terminal --speed 0 -n 50000000 2>&1 | \
+    echo "" | {{cor24_run}} --run build/tml24c.s --terminal --speed 0 -n 100000000 2>&1 | \
         grep -E '^(scaffold|reader|eval|gc|compile) ok$' | sort -u > build/test-results.txt
     expected=5
     got=$(wc -l < build/test-results.txt | tr -d ' ')
