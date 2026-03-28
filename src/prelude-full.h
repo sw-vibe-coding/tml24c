@@ -155,6 +155,13 @@ void load_prelude() {
     eval_str("(define true t)");
     eval_str("(define false nil)");
 
+    /* message: Elisp-style formatted output (format + display + newline) */
+    eval_str("(define (message fmt . args) (display (apply format (cons fmt args))) (newline))");
+
+    /* format t: CL-style (format t ...) prints to stdout + newline */
+    eval_str("(define _format format)");
+    eval_str("(define (format dest . args) (if (eq? dest t) (begin (display (apply _format args)) (newline)) (apply _format (cons dest args))))");
+
     /* Comments */
     eval_str("(defmacro comment rest nil)");
 

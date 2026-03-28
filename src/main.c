@@ -392,6 +392,13 @@ void test_eval() {
     test_eval_one("(format \"x=~a y=~a\" 1 2)", "\"x=1 y=2\"");
     test_eval_one("(format \"tilde: ~~\")", "\"tilde: ~\"");
     test_eval_one("(format \"type: ~a\" 'foo)", "\"type: foo\"");
+    /* format with mixed string/integer args (regression test for stack corruption bug) */
+    test_eval_one("(format \"~a is ~a\" \"x\" 42)", "\"x is 42\"");
+    test_eval_one("(format \"~a ~a ~a\" 1 \"mid\" 3)", "\"1 mid 3\"");
+    /* format t — CL-style print to stdout, returns nil */
+    test_eval_one("(format t \"hello ~a\" \"world\")", "nil");
+    /* message — Elisp-style format+display+newline */
+    test_eval_one("(message \"~a is ~a\" \"x\" 42)", "nil");
 
     /* substring */
     test_eval_one("(substring \"hello\" 1 3)", "\"el\"");
@@ -664,6 +671,13 @@ void load_prelude() {
     eval_str("(define *restarts* nil)");
     eval_str("(define (with-restart name handler thunk) (let ((tag (gensym))) (let ((saved *restarts*)) (begin (set! *restarts* (cons (list name tag handler) *restarts*)) (let ((result (catch tag (let ((v (thunk))) (begin (set! *restarts* saved) v))))) (begin (set! *restarts* saved) result))))))");
     eval_str("(define (invoke-restart name val) (let ((r (assoc name *restarts*))) (if (null? r) (begin (display \"ERR:no-restart \") (println name)) (let ((tag (cadr r))) (let ((handler (caddr r))) (throw tag (handler val)))))))");
+
+    /* message: Elisp-style formatted output (format + display + newline) */
+    eval_str("(define (message fmt . args) (display (apply format (cons fmt args))) (newline))");
+
+    /* format t: CL-style (format t ...) prints to stdout + newline */
+    eval_str("(define _format format)");
+    eval_str("(define (format dest . args) (if (eq? dest t) (begin (display (apply _format args)) (newline)) (apply _format (cons dest args))))");
 
     /* COR24-TB I/O addresses */
     eval_str("(define IO-LED #xFF0000)");

@@ -14,6 +14,7 @@ int apply_fn(int fn, int args);
 /* Global environment */
 int global_env;
 
+
 /* Pre-interned special form symbols */
 int sym_quote;
 int sym_if;
@@ -296,10 +297,20 @@ int apply_primitive(int id, int args) {
         return NIL_VAL;
     }
     if (id == PRIM_FORMAT) {
-        /* (format fmt-string args...) — ~a = display, ~~ = literal ~ */
+        /* (format fmt-string args...) — ~a = display, ~~ = literal ~
+         * Pre-convert fixnum args to avoid stack corruption from nested
+         * calls (cons/apply_primitive) while char buf[] is on the stack. */
+        int fargs = cdr(args);
+        while (!IS_NIL(fargs)) {
+            if (IS_FIXNUM(car(fargs))) {
+                int sv = apply_primitive(PRIM_NUM_TO_STR, cons(car(fargs), NIL_VAL));
+                heap_car[PTR_IDX(fargs)] = sv;
+            }
+            fargs = cdr(fargs);
+        }
         char *fmt = string_data(a);
         int flen = string_len(a);
-        int fargs = cdr(args);
+        fargs = cdr(args);
         char buf[256];
         int bi = 0;
         int fi = 0;
@@ -309,14 +320,10 @@ int apply_primitive(int id, int args) {
                 if (fmt[fi] == 'a' && !IS_NIL(fargs)) {
                     int arg = car(fargs);
                     fargs = cdr(fargs);
-                    /* Convert arg to string data */
                     char *s = 0;
                     int sl = 0;
                     if (is_string(arg)) {
                         s = string_data(arg); sl = string_len(arg);
-                    } else if (IS_FIXNUM(arg)) {
-                        int sv = apply_primitive(PRIM_NUM_TO_STR, cons(arg, NIL_VAL));
-                        s = string_data(sv); sl = string_len(sv);
                     } else if (IS_SYMBOL(arg)) {
                         s = sym_name(arg); sl = 0;
                         while (s[sl]) sl = sl + 1;

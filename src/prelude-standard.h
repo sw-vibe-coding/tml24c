@@ -104,6 +104,13 @@ void load_prelude() {
     eval_str("(define (call-with-parameterize param new-val thunk) (let ((saved (param))) (dynamic-wind (lambda () (param new-val)) thunk (lambda () (param saved)))))");
     eval_str("(defmacro parameterize (bindings body) `(call-with-parameterize ,(caar bindings) ,(cadr (car bindings)) (lambda () ,body)))");
 
+    /* message: Elisp-style formatted output (format + display + newline) */
+    eval_str("(define (message fmt . args) (display (apply format (cons fmt args))) (newline))");
+
+    /* format t: CL-style (format t ...) prints to stdout + newline */
+    eval_str("(define _format format)");
+    eval_str("(define (format dest . args) (if (eq? dest t) (begin (display (apply _format args)) (newline)) (apply _format (cons dest args))))");
+
     /* Comments */
     eval_str("(defmacro comment rest nil)");
 
