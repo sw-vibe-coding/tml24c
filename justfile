@@ -201,19 +201,29 @@ demo-continuations: build-standard
 demo-isr-echo: build-compiler
     just run-compiled-uart demos/isr-echo.l24 "Hello, COR24!"
 
-# Multi-module: main.l24 calls uart.s loaded at 0x1000
+# Multi-module: Lisp dispatches to 5 .s service modules
 demo-multi: build-compiler
     #!/usr/bin/env bash
     set -euo pipefail
-    # Assemble UART service module at 0x1000
-    {{cor24_run}} --assemble demos/multi/uart.s build/uart.bin build/uart.lst --base-addr 0x1000
+    # Assemble service modules at fixed addresses
+    {{cor24_run}} --assemble demos/multi/uart.s  build/uart.bin  build/uart.lst  --base-addr 0x1000
+    {{cor24_run}} --assemble demos/multi/spi.s   build/spi.bin   build/spi.lst   --base-addr 0x2000
+    {{cor24_run}} --assemble demos/multi/i2c.s   build/i2c.bin   build/i2c.lst   --base-addr 0x3000
+    {{cor24_run}} --assemble demos/multi/gpio.s  build/gpio.bin  build/gpio.lst  --base-addr 0x4000
+    {{cor24_run}} --assemble demos/multi/timer.s build/timer.bin build/timer.lst --base-addr 0x5000
     # Compile main.l24 to .s
     { grep -v '^;;' demos/multi/main.l24; printf '\004'; } | \
         {{cor24_run}} --run build/compiler.s --terminal --speed 0 -n 500000000 2>&1 | \
         grep -v -E '^Assembled |Executed [0-9]+ instructions|^\[CPU' > build/main.s
-    # Run main with UART module loaded
-    {{cor24_run}} --run build/main.s --load-binary build/uart.bin@0x1000 --speed 0 -n 10000000 2>&1 | \
-        grep -v -E '^Assembled |Executed [0-9]+ instructions|^\[CPU'
+    # Run with all modules loaded
+    {{cor24_run}} --run build/main.s \
+        --load-binary build/uart.bin@0x1000 \
+        --load-binary build/spi.bin@0x2000 \
+        --load-binary build/i2c.bin@0x3000 \
+        --load-binary build/gpio.bin@0x4000 \
+        --load-binary build/timer.bin@0x5000 \
+        --speed 0 -n 10000000 2>&1 | \
+        grep -v -E '^Assembled |Loaded |Executed [0-9]+ instructions|^\[CPU'
 
 # List available demos
 demos:

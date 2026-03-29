@@ -1,18 +1,30 @@
-;; main.l24 -- Main program (loaded at 0x0000)
+;; main.l24 -- HAL dispatch demo (loaded at 0x0000)
 ;;
-;; Calls uart-putc from the UART module at 0x1000 to print "Hi!\n".
-;; Compile: just compile demos/multi/main.l24
-;; Run:     just demo-multi
+;; Maps Lisp names to .s service modules at fixed addresses.
+;; Each module prints its name via uart-putc, proving the call worked.
+;; Run: just demo-multi
 
-;; Wire uart-putc from the UART module (entry point at 0x1000)
-(define putc (asm "        la   r0,#x1000"))
+;; HAL: map Lisp names to module entry points
+(define uart-putc  (asm "        la   r0,#x1000"))
+(define spi-xfer   (asm "        la   r0,#x2000"))
+(define i2c-xfer   (asm "        la   r0,#x3000"))
+(define gpio-op    (asm "        la   r0,#x4000"))
+(define timer-op   (asm "        la   r0,#x5000"))
 
-;; Print chars (72=H, 105=i, 33=!, 10=newline)
-(putc 72)
-(putc 105)
-(putc 33)
-(putc 10)
+;; Call each module -- they print their name and return
+(uart-putc 62)
+(uart-putc 32)
+(spi-xfer)
+(uart-putc 62)
+(uart-putc 32)
+(i2c-xfer)
+(uart-putc 62)
+(uart-putc 32)
+(gpio-op)
+(uart-putc 62)
+(uart-putc 32)
+(timer-op)
 
-;; Halt (self-branch detected by emulator)
+;; Halt
 (asm "_halt:"
      "        bra _halt")
