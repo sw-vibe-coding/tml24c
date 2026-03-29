@@ -1,29 +1,65 @@
-;; isr-echo.l24 -- Interrupt-driven UART echo
+;; isr-echo.l24 -- Interrupt-driven UART echo with Lisp handler
 ;;
-;; Shows: Inline asm for ISR + compiled Lisp for main loop,
-;;        mixed asm/Lisp in one compiled program.
+;; Shows: Inline asm for ISR plumbing and hardware helpers,
+;;        compiled Lisp handler called on each interrupt,
+;;        symbol references from asm to link ISR to Lisp.
 ;; Compile: just compile demos/isr-echo.l24
 ;; Run:     just run-compiled-uart demos/isr-echo.l24 "Hello"
-;;
-;; The ISR reads a UART byte and echoes it back. The main program
-;; is a compiled Lisp spin loop. Interrupts do the work.
 
-;; Jump over ISR body
-(asm "        la   r0,_past_isr"
+;; Jump over ISR and helpers
+(asm "        la   r0,_past_asm"
      "        jmp  (r0)")
 
-;; ISR: read UART RX (acknowledges interrupt), echo to UART TX
+;; ISR: save regs, read UART (acknowledge), tag as fixnum, call Lisp handler
 (asm "isr:"
      "        push r0"
      "        push r1"
+     "        push r2"
+     "        mov  r2,c"
+     "        push r2"
+     "        push fp"
      "        la   r1,#xFF0100"
      "        lb   r0,0(r1)"
-     "        sb   r0,0(r1)"
+     "        lc   r1,2"
+     "        shl  r0,r1"
+     "        push r0"
+     "        la   r0," handle-char
+     "        lw   r0,0(r0)"
+     "        jal  r1,(r0)"
+     "        add  sp,3"
+     "        pop  fp"
+     "        pop  r2"
+     "        clu  z,r2"
+     "        pop  r2"
      "        pop  r1"
      "        pop  r0"
      "        jmp  (ir)")
 
-(asm "_past_isr:")
+;; uart-putc: write byte to UART TX. arg at fp+9 (tagged fixnum)
+(asm "_uart_putc:"
+     "        push fp"
+     "        push r2"
+     "        push r1"
+     "        mov  fp,sp"
+     "        lw   r0,9(fp)"
+     "        lc   r1,2"
+     "        sra  r0,r1"
+     "        la   r1,#xFF0100"
+     "        sb   r0,0(r1)"
+     "        mov  sp,fp"
+     "        pop  r1"
+     "        pop  r2"
+     "        pop  fp"
+     "        jmp  (r1)")
+
+(asm "_past_asm:")
+
+;; Wire uart-putc as a Lisp-callable function
+(define uart-putc (asm "        la   r0,_uart_putc"))
+
+;; Lisp handler -- called by ISR on each UART byte
+(define handle-char (lambda (ch)
+  (uart-putc ch)))
 
 ;; Install ISR and enable UART RX interrupt
 (asm "        la   r0,isr"
@@ -32,6 +68,7 @@
      "        lc   r0,1"
      "        sb   r0,0(r1)")
 
-;; Spin forever -- compiled Lisp (interrupts do the work)
-(define spin (lambda () (spin)))
-(spin)
+;; Busy loop (not self-branch so emulator doesn't detect halt)
+(asm "_spin:"
+     "        nop"
+     "        bra _spin")
