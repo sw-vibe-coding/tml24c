@@ -57,3 +57,4 @@
 - **fd9d372** Add symbol refs in asm, compiler driver, ISR echo demo + test-asm (2026-03-28)
 - **0315d1f** ISR echo demo: Lisp handler called from asm ISR via uart-putc helper (2026-03-28)
 - **30155b7** Add docs/ml2asm-demos.md: compile pipeline and demo documentation (2026-03-28)
+- **f1aa074** Multi-module HAL demo: Lisp dispatches to 5 .s modules at 0x1000-0x5000 (2026-03-28)
