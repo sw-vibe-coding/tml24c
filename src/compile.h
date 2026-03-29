@@ -252,7 +252,6 @@ void cexpr(int expr, int env) {
                 return;
             }
             char *d = string_data(s);
-            puts_str("        ");
             puts_str(d);
             putc_uart(10);
             strs = cdr(strs);

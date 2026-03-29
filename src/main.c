@@ -497,9 +497,10 @@ void test_compile() {
     /* Test asm special form */
     compile_init();
 
-    int a3 = cons(read_str("(+ 1 2)"), NIL_VAL);
-    int a2 = cons(read_str("(define toggle-leds (lambda () (asm \"la r0,#xFF0000\" \"lw r1,0(r0)\" \"not r1\" \"sw r1,0(r0)\")))"), a3);
-    int a1 = cons(read_str("(asm \"nop\")"), a2);
+    int a4 = cons(read_str("(define panic (lambda () (asm \"_panic:\" \"        bra _panic\")))"), NIL_VAL);
+    int a3 = cons(read_str("(+ 1 2)"), a4);
+    int a2 = cons(read_str("(define toggle-leds (lambda () (asm \"        la r0,#xFF0000\" \"        lw r1,0(r0)\" \"        la r2,#xFFFFFF\" \"        xor r1,r2\" \"        sw r1,0(r0)\")))"), a3);
+    int a1 = cons(read_str("(asm \"        nop\")"), a2);
     int asm_prog = a1;
 
     puts_str("--- asm compiler output ---\n");
