@@ -1,0 +1,18 @@
+;; main.l24 -- Main program (loaded at 0x0000)
+;;
+;; Calls uart-putc from the UART module at 0x1000 to print "Hi!\n".
+;; Compile: just compile demos/multi/main.l24
+;; Run:     just demo-multi
+
+;; Wire uart-putc from the UART module (entry point at 0x1000)
+(define putc (asm "        la   r0,#x1000"))
+
+;; Print chars (72=H, 105=i, 33=!, 10=newline)
+(putc 72)
+(putc 105)
+(putc 33)
+(putc 10)
+
+;; Halt (self-branch detected by emulator)
+(asm "_halt:"
+     "        bra _halt")
