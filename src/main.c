@@ -437,6 +437,27 @@ void test_eval() {
     test_eval_one("(zip '(a b) '(1 2))", "((a 1) (b 2))");
     test_eval_one("((constantly 42) 99)", "42");
 
+    /* reduce with arithmetic primitives */
+    test_eval_one("(reduce + 0 '(1 2 3 4 5))", "15");
+    test_eval_one("(reduce * 1 '(1 2 3 4 5))", "120");
+    test_eval_one("(reduce + 0 '())", "0");
+    test_eval_one("(reduce + 100 '(1 2 3))", "106");
+    test_eval_one("(reduce - 100 '(10 20 30))", "40");
+
+    /* range */
+    test_eval_one("(range 0)", "nil");
+    test_eval_one("(range 1)", "(0)");
+    test_eval_one("(range 5)", "(0 1 2 3 4)");
+
+    /* reduce over range — sum of 0..9 */
+    test_eval_one("(reduce + 0 (range 10))", "45");
+    /* factorial via reduce over range */
+    test_eval_one("(reduce * 1 (cdr (range 6)))", "120");
+
+    /* map with arithmetic primitives */
+    test_eval_one("(map double (range 5))", "(0 2 4 6 8)");
+    test_eval_one("(map inc '(10 20 30))", "(11 21 31)");
+
     puts_str("eval ok\n");
 }
 

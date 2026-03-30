@@ -193,6 +193,10 @@ demo-bottles2: build-full
 demo-bottles4: build-standard
     grep -v '^;;' demos/bottles4.l24 | {{cor24_run}} --run build/repl-standard.s --terminal --speed 0 -n 500000000
 
+# Reduce, fold, and aggregate patterns (full prelude)
+demo-reduce: build-full
+    grep -v '^;;' demos/reduce.l24 | {{cor24_run}} --run build/repl-full.s --terminal --speed 0 -n 500000000
+
 # Escape continuations and error handling
 demo-continuations: build-standard
     grep -v '^;;' demos/continuations.l24 | {{cor24_run}} --run build/repl-standard.s --terminal --speed 0 -n 500000000

@@ -75,6 +75,23 @@
 (display "lookup table: ")
 (println (zip keys vals))
 
+;; === reduce + range ===
+
+(display "--- reduce + range ---")
+(newline)
+
+;; sum 0..9
+(display "sum 0..9: ")
+(println (reduce + 0 (range 10)))
+
+;; factorial: product 1..5
+(display "5! = ")
+(println (reduce * 1 (cdr (range 6))))
+
+;; sum a specific list
+(display "sum '(10 20 30): ")
+(println (reduce + 0 '(10 20 30)))
+
 ;; === Putting it together ===
 
 (display "--- combined ---")

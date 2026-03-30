@@ -5,6 +5,11 @@
 ;; Stack: 3 KB (default)
 ;; Run: just eval demos/variadic.l24
 
+;; Variadic arithmetic primitives
+(+ 1 2 3 4 5)
+(* 1 2 3 4 5)
+(- 100 10 20 30)
+
 (define my-list (lambda args args))
 (my-list 1 2 3 4 5)
 

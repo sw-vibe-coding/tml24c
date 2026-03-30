@@ -1,0 +1,102 @@
+;; reduce.l24 — Reduce, fold, and aggregate patterns
+;; Run with: just eval-full demos/reduce.l24
+
+;; === Basics: reduce with arithmetic ===
+
+(display "--- reduce basics ---")
+(newline)
+
+;; Sum a list
+(display "sum '(1 2 3 4 5): ")
+(println (reduce + 0 '(1 2 3 4 5)))
+
+;; Product
+(display "product '(1 2 3 4 5): ")
+(println (reduce * 1 '(1 2 3 4 5)))
+
+;; Subtraction folds left: 100 - 10 - 20 - 30
+(display "100 - 10 - 20 - 30: ")
+(println (reduce - 100 '(10 20 30)))
+
+;; Empty list returns the initial value
+(display "sum of empty: ")
+(println (reduce + 0 '()))
+
+;; === Reduce over ranges ===
+
+(display "--- reduce over range ---")
+(newline)
+
+;; Sum of 0..9
+(display "sum 0..9: ")
+(println (reduce + 0 (range 10)))
+
+;; Sum of 1..100 (Gauss)
+(display "sum 1..100: ")
+(println (reduce + 0 (cdr (range 101))))
+
+;; Factorial: product of 1..7
+(display "7!: ")
+(println (reduce * 1 (cdr (range 8))))
+
+;; === Building things with reduce ===
+
+(display "--- reduce to build ---")
+(newline)
+
+;; Reverse a list via reduce
+(define (my-reverse lst) (reduce (lambda (acc x) (cons x acc)) nil lst))
+(display "reverse '(a b c d): ")
+(println (my-reverse '(a b c d)))
+
+;; Count elements
+(define (length lst) (reduce (lambda (n x) (+ n 1)) 0 lst))
+(display "length '(a b c): ")
+(println (length '(a b c)))
+
+;; Maximum
+(define (maximum lst) (reduce (lambda (a b) (if (< a b) b a)) (car lst) (cdr lst)))
+(display "max '(3 1 4 1 5 9 2 6): ")
+(println (maximum '(3 1 4 1 5 9 2 6)))
+
+;; Minimum
+(define (minimum lst) (reduce (lambda (a b) (if (< a b) a b)) (car lst) (cdr lst)))
+(display "min '(3 1 4 1 5 9 2 6): ")
+(println (minimum '(3 1 4 1 5 9 2 6)))
+
+;; === Combining map and reduce ===
+
+(display "--- map + reduce ---")
+(newline)
+
+;; Sum of squares
+(define (square x) (* x x))
+(display "sum of squares 1..5: ")
+(println (reduce + 0 (map square (cdr (range 6)))))
+
+;; Double then sum
+(define (double x) (* x 2))
+(display "sum of doubles 1..5: ")
+(println (reduce + 0 (map double (cdr (range 6)))))
+
+;; Count items matching a predicate
+(define (count-if pred lst) (reduce + 0 (map (lambda (x) (if (pred x) 1 0)) lst)))
+(define (even? n) (= (% n 2) 0))
+(display "evens in 0..9: ")
+(println (count-if even? (range 10)))
+
+;; === String building with reduce ===
+
+(display "--- reduce with strings ---")
+(newline)
+
+;; Join words
+(define (join sep lst)
+  (if (null? lst) ""
+    (reduce (lambda (acc s) (string-append acc (string-append sep s)))
+            (car lst) (cdr lst))))
+(display "join: ")
+(println (join ", " '("alice" "bob" "carol")))
+
+(display "--- done ---")
+(newline)

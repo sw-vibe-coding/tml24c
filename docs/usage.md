@@ -20,6 +20,7 @@ just eval-custom myapp.l24 prelude/my-dialect.l24
 just demo-bottles           # 99 Bottles of Beer
 just demo-bottles2          # trampoline version
 just demo-bottles4          # functional version
+just demo-reduce            # reduce/fold patterns (full prelude)
 just demo-blink             # LED blink (--speed 500000)
 
 # Build and test
