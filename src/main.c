@@ -133,11 +133,22 @@ void test_eval() {
     test_eval_one("(quote foo)", "foo");
     test_eval_one("'(1 2 3)", "(1 2 3)");
 
-    /* Arithmetic */
+    /* Arithmetic — binary */
     test_eval_one("(+ 1 2)", "3");
     test_eval_one("(- 10 3)", "7");
     test_eval_one("(* 4 5)", "20");
     test_eval_one("(/ 10 3)", "3");
+
+    /* Arithmetic — variadic */
+    test_eval_one("(+)", "0");
+    test_eval_one("(*)", "1");
+    test_eval_one("(+ 5)", "5");
+    test_eval_one("(- 5)", "-5");
+    test_eval_one("(* 7)", "7");
+    test_eval_one("(+ 1 2 3 4)", "10");
+    test_eval_one("(- 10 3 2 1)", "4");
+    test_eval_one("(* 2 3 4)", "24");
+    test_eval_one("(+ 1 2 3 4 5 6 7 8 9 10)", "55");
 
     /* Nested arithmetic */
     test_eval_one("(+ (* 2 3) (- 10 4))", "12");

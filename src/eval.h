@@ -220,15 +220,38 @@ int apply_primitive(int id, int args) {
         }
     }
 
-    /* Arithmetic with type checks */
-    if (id == PRIM_ADD || id == PRIM_SUB || id == PRIM_MUL || id == PRIM_DIV || id == PRIM_MOD || id == PRIM_LT || id == PRIM_EQ_NUM) {
+    /* Variadic arithmetic: +, -, * fold over all args */
+    if (id == PRIM_ADD || id == PRIM_SUB || id == PRIM_MUL) {
+        int identity = (id == PRIM_MUL) ? 1 : 0;
+        int result = identity;
+        int rest = args;
+        int count = 0;
+        while (!IS_NIL(rest)) {
+            int v = car(rest);
+            if (!IS_FIXNUM(v)) { puts_str("ERR:not-number\n"); return NIL_VAL; }
+            if (count == 0 && id == PRIM_SUB) {
+                result = FIXNUM_VAL(v);
+            } else if (id == PRIM_ADD) {
+                result += FIXNUM_VAL(v);
+            } else if (id == PRIM_SUB) {
+                result -= FIXNUM_VAL(v);
+            } else {
+                result *= FIXNUM_VAL(v);
+            }
+            count++;
+            rest = cdr(rest);
+        }
+        /* (- x) is negation */
+        if (id == PRIM_SUB && count == 1) result = -result;
+        return MAKE_FIXNUM(result);
+    }
+
+    /* Binary arithmetic with type checks */
+    if (id == PRIM_DIV || id == PRIM_MOD || id == PRIM_LT || id == PRIM_EQ_NUM) {
         if (!IS_FIXNUM(a) || !IS_FIXNUM(b)) {
             puts_str("ERR:not-number\n");
             return NIL_VAL;
         }
-        if (id == PRIM_ADD) return MAKE_FIXNUM(FIXNUM_VAL(a) + FIXNUM_VAL(b));
-        if (id == PRIM_SUB) return MAKE_FIXNUM(FIXNUM_VAL(a) - FIXNUM_VAL(b));
-        if (id == PRIM_MUL) return MAKE_FIXNUM(FIXNUM_VAL(a) * FIXNUM_VAL(b));
         if (id == PRIM_DIV) {
             if (FIXNUM_VAL(b) == 0) { puts_str("ERR:div-by-zero\n"); return NIL_VAL; }
             return MAKE_FIXNUM(FIXNUM_VAL(a) / FIXNUM_VAL(b));
